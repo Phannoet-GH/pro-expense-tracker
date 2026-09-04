@@ -1,32 +1,67 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { Link } from 'react-router-dom';
+import AutoExpenseCalculator from '../components/AutoExpenseCalculator';
 
 export default function Dashboard() {
-  const { expenses, budgets, addExpense, updateBudget, sampleReceipts } = useContext(ExpenseContext);
-  
+  const {
+    expenses,
+    incomes,
+    budgets,
+    savingsGoals,
+    addExpense,
+    addIncome,
+    updateBudget,
+    sampleReceipts,
+    incomeSources,
+    expenseCategories,
+    totalIncome,
+    totalExpense,
+    netSavings,
+    savingsRate,
+    totalBudgetLimit,
+    formatAmount,
+    currency
+  } = useContext(ExpenseContext);
+
+  // Transaction form type toggle: 'expense' | 'income'
+  const [txType, setTxType] = useState('expense');
+  const [showAutoCalcModal, setShowAutoCalcModal] = useState(false);
+
+  // Form states
   const [formData, setFormData] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
-    category: 'Food & Dining',
+    category: 'Food & Drink',
+    source: 'Salary',
     amount: '',
     notes: '',
-    receipt: null
+    receipt: null,
+    is_recurring: false
   });
 
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState({ ...budgets });
 
-  const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
-  const totalBudgetLimit = Object.values(budgets).reduce((sum, b) => sum + parseFloat(b || 0), 0);
-  const remainingBudget = totalBudgetLimit - totalSpent;
-  const recentExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+  // Remaining budget
+  const remainingBudget = totalBudgetLimit - totalExpense;
 
-  // Calculate spending per category
-  const categorySpending = expenses.reduce((acc, exp) => {
-    acc[exp.category] = (acc[exp.category] || 0) + parseFloat(exp.amount || 0);
-    return acc;
-  }, {});
+  // Category spending
+  const categorySpending = useMemo(() => {
+    return expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + parseFloat(exp.amount || 0);
+      return acc;
+    }, {});
+  }, [expenses]);
+
+  // Combined recent activities (both incomes and expenses, sorted by date)
+  const recentActivities = useMemo(() => {
+    const combined = [
+      ...expenses.map(e => ({ ...e, txType: 'expense' })),
+      ...incomes.map(i => ({ ...i, txType: 'income' }))
+    ];
+    return combined.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 7);
+  }, [expenses, incomes]);
 
   const handleSelectSampleReceipt = (rec) => {
     setFormData({
@@ -42,19 +77,36 @@ export default function Dashboard() {
     e.preventDefault();
     if (!formData.amount || parseFloat(formData.amount) <= 0) return;
 
-    addExpense({
-      ...formData,
-      title: formData.title.trim() || `${formData.category} Expense`,
-      amount: parseFloat(formData.amount)
-    });
+    if (txType === 'expense') {
+      addExpense({
+        title: formData.title.trim() || `${formData.category} Expense`,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        date: formData.date,
+        notes: formData.notes,
+        receipt: formData.receipt
+      });
+    } else {
+      addIncome({
+        title: formData.title.trim() || `${formData.source} Income`,
+        amount: parseFloat(formData.amount),
+        source: formData.source,
+        date: formData.date,
+        notes: formData.notes,
+        is_recurring: formData.is_recurring
+      });
+    }
 
+    // Reset form
     setFormData({
       title: '',
       date: new Date().toISOString().split('T')[0],
       category: 'Food & Dining',
+      source: 'Salary',
       amount: '',
       notes: '',
-      receipt: null
+      receipt: null,
+      is_recurring: false
     });
   };
 
@@ -67,54 +119,152 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* Top Banner Header */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-          <h3 className="fw-bold m-0">Dashboard Overview</h3>
-          <p className="text-muted small m-0">Track recurring category budgets, expenses, and attached receipts</p>
+          <h3 className="fw-bold m-0 text-dark">Executive Financial Dashboard</h3>
+          <p className="text-muted small m-0">Monitor income cash flow, expense categories, budget thresholds, and wealth building</p>
         </div>
-        <button
-          className="btn btn-sm btn-outline-primary rounded-pill px-3"
-          onClick={() => {
-            setBudgetDraft({ ...budgets });
-            setShowBudgetEditor(!showBudgetEditor);
-          }}
-        >
-          <i className="bi bi-gear-fill me-1"></i> {showBudgetEditor ? 'Close Budget Settings' : 'Configure Monthly Budgets'}
-        </button>
-      </div>
-
-      {/* KPI Top Cards */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm rounded-4 p-4 text-center">
-            <h6 className="text-muted text-uppercase fw-bold small">Total Spent</h6>
-            <h2 className="text-primary fw-bold mb-0">${totalSpent.toFixed(2)}</h2>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm rounded-4 p-4 text-center">
-            <h6 className="text-muted text-uppercase fw-bold small">Total Transactions</h6>
-            <h2 className="text-success fw-bold mb-0">{expenses.length}</h2>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 shadow-sm rounded-4 p-4 text-center">
-            <h6 className="text-muted text-uppercase fw-bold small">Remaining Budget</h6>
-            <h2 className={`fw-bold mb-0 ${remainingBudget >= 0 ? 'text-success' : 'text-danger'}`}>
-              ${remainingBudget.toFixed(2)}
-            </h2>
-          </div>
+        <div className="d-flex gap-2 flex-wrap">
+          <Link to="/savings" className="btn btn-sm btn-warning rounded-pill px-3 fw-semibold text-dark shadow-sm">
+            <i className="bi bi-piggy-bank-fill me-1"></i> How to Save Money
+          </Link>
+          <button
+            className="btn btn-sm btn-outline-primary rounded-pill px-3"
+            onClick={() => {
+              setBudgetDraft({ ...budgets });
+              setShowBudgetEditor(!showBudgetEditor);
+            }}
+          >
+            <i className="bi bi-sliders me-1"></i> {showBudgetEditor ? 'Close Budgets' : 'Configure Category Budgets'}
+          </button>
         </div>
       </div>
 
-      {/* Budget Configuration Modal / Drawer */}
+      {/* 4 KPI Top Cards */}
+      <div className="row g-3 mb-4">
+        {/* Card 1: Net Cash Flow */}
+        <div className="col-md-3 col-sm-6">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Net Cash Flow</span>
+              <span className={`badge rounded-pill ${netSavings >= 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>
+                {netSavings >= 0 ? 'Surplus' : 'Deficit'}
+              </span>
+            </div>
+            <h3 className={`fw-bold mb-1 ${netSavings >= 0 ? 'text-success' : 'text-danger'}`}>
+              {formatAmount(netSavings)}
+            </h3>
+            <div className="text-muted small">
+              {totalIncome > 0 ? `${savingsRate.toFixed(0)}% retained as savings` : 'Log income to measure flow'}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Total Income */}
+        <div className="col-md-3 col-sm-6">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Total Inflow</span>
+              <span className="badge rounded-pill bg-primary-subtle text-primary">{incomes.length} Entries</span>
+            </div>
+            <h3 className="fw-bold text-primary mb-1">{formatAmount(totalIncome)}</h3>
+            <div className="text-muted small">Salary, freelance & investments</div>
+          </div>
+        </div>
+
+        {/* Card 3: Total Expenses */}
+        <div className="col-md-3 col-sm-6">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Total Outflow</span>
+              <span className="badge rounded-pill bg-secondary-subtle text-secondary">{expenses.length} Txns</span>
+            </div>
+            <h3 className="fw-bold text-danger mb-1">{formatAmount(totalExpense)}</h3>
+            <div className="text-muted small">
+              {totalBudgetLimit > 0 ? `${Math.round((totalExpense / totalBudgetLimit) * 100)}% of budget limit` : 'No budget set'}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Savings Health */}
+        <div className="col-md-3 col-sm-6">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Savings Rate</span>
+              <span className={`badge rounded-pill ${savingsRate >= 20 ? 'bg-success' : savingsRate >= 10 ? 'bg-warning text-dark' : 'bg-secondary'}`}>
+                {savingsRate >= 20 ? '⭐ Strong' : savingsRate >= 10 ? 'Moderate' : 'Needs Boost'}
+              </span>
+            </div>
+            <h3 className="fw-bold text-dark mb-1">{savingsRate.toFixed(1)}%</h3>
+            <div className="text-muted small">
+              Recommended: 20%+ (50/30/20)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 50/30/20 Mini Progress Meter Callout */}
+      <div className="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <div className="d-flex align-items-center gap-2">
+            <span className="badge bg-warning-subtle text-dark px-2 py-1 rounded-pill">
+              <i className="bi bi-lightbulb-fill me-1 text-warning"></i> Smart Savings Rule
+            </span>
+            <span className="fw-bold small text-dark">50/30/20 Income Allocation Health</span>
+          </div>
+          <Link to="/savings" className="small fw-bold text-primary text-decoration-none">
+            Deep Dive in Savings Hub <i className="bi bi-arrow-right"></i>
+          </Link>
+        </div>
+
+        {/* 3-Part Combined Progress Bar */}
+        {totalIncome > 0 ? (
+          <div>
+            <div className="progress" style={{ height: '14px' }}>
+              <div
+                className="progress-bar bg-primary"
+                style={{ width: `${Math.min(100, Math.round((totalExpense * 0.65 / totalIncome) * 100))}%` }}
+                title="Needs (Target 50%)"
+              >
+                Needs
+              </div>
+              <div
+                className="progress-bar bg-warning"
+                style={{ width: `${Math.min(100, Math.round((totalExpense * 0.35 / totalIncome) * 100))}%` }}
+                title="Wants (Target 30%)"
+              >
+                Wants
+              </div>
+              <div
+                className="progress-bar bg-success"
+                style={{ width: `${Math.max(0, savingsRate)}%` }}
+                title="Savings (Target 20%)"
+              >
+                Savings
+              </div>
+            </div>
+            <div className="d-flex justify-content-between small text-muted mt-2" style={{ fontSize: '11px' }}>
+              <span><span className="badge bg-primary me-1">&bull;</span> Needs Target: 50% ({formatAmount(totalIncome * 0.5)})</span>
+              <span><span className="badge bg-warning text-dark me-1">&bull;</span> Wants Target: 30% ({formatAmount(totalIncome * 0.3)})</span>
+              <span><span className="badge bg-success me-1">&bull;</span> Savings Target: 20% ({formatAmount(totalIncome * 0.2)})</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-muted small mb-0">
+            Log your monthly income to unlock real-time 50/30/20 recommendations and savings optimization!
+          </p>
+        )}
+      </div>
+
+      {/* Budget Configuration Drawer */}
       {showBudgetEditor && (
         <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light">
-          <h5 className="fw-bold mb-3">Set Monthly Recurring Budgets</h5>
+          <h5 className="fw-bold mb-3">Set Monthly Category Budgets</h5>
           <div className="row g-3">
             {Object.keys(budgets).map((cat) => (
               <div key={cat} className="col-md-4 col-sm-6">
-                <label className="form-label small fw-semibold text-muted">{cat} ($)</label>
+                <label className="form-label small fw-semibold text-muted">{cat} ({currency})</label>
                 <input
                   type="number"
                   min="0"
@@ -127,18 +277,299 @@ export default function Dashboard() {
           </div>
           <div className="d-flex justify-content-end gap-2 mt-3">
             <button className="btn btn-sm btn-secondary rounded-pill px-3" onClick={() => setShowBudgetEditor(false)}>Cancel</button>
-            <button className="btn btn-sm btn-primary rounded-pill px-4" onClick={handleSaveBudgets}>Save Budget Limits</button>
+            <button className="btn btn-sm btn-primary rounded-pill px-4" onClick={handleSaveBudgets}>Save Budgets</button>
           </div>
         </div>
       )}
 
-      {/* Recurring Category Budgets Progress Section */}
-      <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="fw-bold m-0">Monthly Recurring Category Budgets</h5>
-          <span className="badge bg-primary-subtle text-primary">
-            ${totalSpent.toFixed(0)} of ${totalBudgetLimit.toFixed(0)} spent ({totalBudgetLimit > 0 ? Math.round((totalSpent / totalBudgetLimit) * 100) : 0}%)
-          </span>
+      {/* Savings Goals Preview Bar (if any goals exist) */}
+      {savingsGoals.length > 0 && (
+        <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="fw-bold m-0"><i className="bi bi-bullseye text-primary me-2"></i>Active Savings Goals</h5>
+            <Link to="/savings" className="btn btn-sm btn-outline-primary rounded-pill px-3">Manage Goals</Link>
+          </div>
+          <div className="row g-3">
+            {savingsGoals.slice(0, 3).map(g => {
+              const target = parseFloat(g.target_amount) || 1;
+              const current = parseFloat(g.current_amount) || 0;
+              const pct = Math.min(100, Math.round((current / target) * 100));
+              return (
+                <div key={g.id} className="col-md-4">
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold small text-truncate">{g.title}</span>
+                      <span className="badge bg-success-subtle text-success">{pct}%</span>
+                    </div>
+                    <div className="d-flex justify-content-between small text-muted mb-2">
+                      <span>{formatAmount(current)}</span>
+                      <span>Target: {formatAmount(target)}</span>
+                    </div>
+                    <div className="progress" style={{ height: '6px' }}>
+                      <div
+                        className="progress-bar bg-success"
+                        style={{ width: `${pct}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main Two-Column Section: Unified Form & Recent Activity */}
+      <div className="row g-4 mb-4">
+        {/* Unified Transaction Form */}
+        <div className="col-lg-5">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="fw-bold m-0 text-dark">Quick Add Transaction</h5>
+
+              {/* Type Switcher Pills */}
+              <div className="btn-group p-1 bg-light rounded-pill border" role="group">
+                <button
+                  type="button"
+                  className={`btn btn-xs rounded-pill px-3 fw-bold ${txType === 'expense' ? 'btn-danger text-white shadow-sm' : 'btn-light border-0 text-muted'}`}
+                  style={{ fontSize: '11px', padding: '4px 12px' }}
+                  onClick={() => setTxType('expense')}
+                >
+                  - Expense
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs rounded-pill px-3 fw-bold ${txType === 'income' ? 'btn-success text-white shadow-sm' : 'btn-light border-0 text-muted'}`}
+                  style={{ fontSize: '11px', padding: '4px 12px' }}
+                  onClick={() => setTxType('income')}
+                >
+                  + Income
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-2">
+                <label className="form-label small fw-semibold text-muted">
+                  {txType === 'expense' ? 'Merchant / Description' : 'Source / Payer'}
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={txType === 'expense' ? 'e.g. Starbucks, Uber, AWS' : 'e.g. Client Salary, Consulting, Bonus'}
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="row g-2 mb-2">
+                <div className="col-6">
+                  <label className="form-label small fw-semibold text-muted">
+                    {txType === 'expense' ? 'Category' : 'Income Stream'}
+                  </label>
+                  {txType === 'expense' ? (
+                    <select
+                      className="form-select"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      required
+                    >
+                      {expenseCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      className="form-select"
+                      value={formData.source}
+                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                      required
+                    >
+                      {incomeSources.map(src => (
+                        <option key={src} value={src}>{src}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="col-6">
+                  <label className="form-label small fw-semibold text-muted">Amount ({currency})</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="row g-2 mb-3">
+                <div className="col-6">
+                  <label className="form-label small fw-semibold text-muted">Date</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="col-6 d-flex align-items-end">
+                  {txType === 'income' ? (
+                    <div className="form-check mb-2">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="recurringCheck"
+                        checked={formData.is_recurring}
+                        onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                      />
+                      <label className="form-check-label small text-muted" htmlFor="recurringCheck">
+                        Recurring Monthly
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="small text-muted mb-2">
+                      <i className="bi bi-tag me-1"></i> Budget: {formData.category}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Receipt Attachment (Only for Expenses) */}
+              {txType === 'expense' && (
+                <div className="mb-3 p-2 bg-light rounded-3 border">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="small fw-semibold text-muted">
+                      <i className="bi bi-receipt me-1 text-primary"></i> Receipt Attachment Simulator
+                    </span>
+                    {formData.receipt && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-link text-danger p-0 text-decoration-none small"
+                        onClick={() => setFormData({ ...formData, receipt: null })}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {formData.receipt ? (
+                    <div className="d-flex align-items-center gap-2 bg-white text-dark p-2 rounded-2 small border">
+                      <i className="bi bi-file-earmark-check-fill text-success fs-5"></i>
+                      <div className="flex-grow-1 text-truncate">
+                        <strong>{formData.receipt.merchant}</strong>
+                        <div className="text-muted" style={{ fontSize: '11px' }}>
+                          Auto-scanned ${formData.receipt.amount} receipt
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '11px', marginBottom: '6px' }}>
+                        Click a sample receipt to simulate OCR auto-fill:
+                      </div>
+                      <div className="d-flex gap-1 flex-wrap">
+                        {sampleReceipts.map((rec) => (
+                          <button
+                            key={rec.id}
+                            type="button"
+                            className="btn btn-xs btn-outline-primary"
+                            style={{ fontSize: '11px', padding: '3px 8px' }}
+                            onClick={() => handleSelectSampleReceipt(rec)}
+                          >
+                            + {rec.merchant} (${rec.amount})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className={`btn w-100 fw-bold py-2 shadow-sm ${txType === 'expense' ? 'btn-danger' : 'btn-success'}`}
+              >
+                {txType === 'expense' ? 'Record Expense' : 'Record Income'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Recent Unified Activity Table */}
+        <div className="col-lg-7">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="fw-bold m-0 text-dark">Recent Cash Flow Activity</h5>
+              <Link to="/transactions" className="btn btn-sm btn-outline-primary rounded-pill px-3">
+                Full Ledger
+              </Link>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table table-borderless align-middle">
+                <tbody>
+                  {recentActivities.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="text-center py-5 text-muted">
+                        No transactions recorded yet. Use the form to record income or expenses!
+                      </td>
+                    </tr>
+                  ) : recentActivities.map((item) => {
+                    const isInc = item.txType === 'income';
+                    return (
+                      <tr key={item.id} className="border-bottom">
+                        <td className="py-2" style={{ width: '45px' }}>
+                          <div
+                            className={`rounded-circle d-flex align-items-center justify-content-center ${isInc ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}
+                            style={{ width: '36px', height: '36px' }}
+                          >
+                            <i className={`bi ${isInc ? 'bi-arrow-down-left' : 'bi-arrow-up-right'}`}></i>
+                          </div>
+                        </td>
+                        <td className="py-2">
+                          <div className="fw-bold text-dark">{item.title || (isInc ? item.source : item.category)}</div>
+                          <div className="text-muted small">{new Date(item.date).toLocaleDateString()}</div>
+                        </td>
+                        <td>
+                          <span className={`badge ${isInc ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}`}>
+                            {isInc ? `+${item.source}` : item.category}
+                          </span>
+                        </td>
+                        <td className={`text-end fw-bold ${isInc ? 'text-success' : 'text-dark'}`}>
+                          {isInc ? `+${formatAmount(item.amount)}` : `-${formatAmount(item.amount)}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Category Budgets Progress Section */}
+      <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 className="fw-bold m-0 text-dark">Monthly Category Budget Allowances</h5>
+            <span className="badge bg-primary-subtle text-primary mt-1">
+              {formatAmount(totalExpense)} of {formatAmount(totalBudgetLimit)} spent &bull; Remaining: {formatAmount(remainingBudget)}
+            </span>
+          </div>
+          <button
+            className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
+            onClick={() => setShowAutoCalcModal(true)}
+          >
+            <i className="bi bi-calculator me-1"></i> Auto-Calculate from Saving Goal
+          </button>
         </div>
 
         <div className="row g-3">
@@ -147,7 +578,6 @@ export default function Dashboard() {
             const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
             const isOver = spent > limit;
             const isWarning = pct >= 75 && !isOver;
-
             const barColorClass = isOver ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success';
 
             return (
@@ -160,17 +590,14 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="d-flex justify-content-between small text-muted mb-2">
-                    <span>${spent.toFixed(2)} spent</span>
-                    <span>Budget: ${limit.toFixed(0)}</span>
+                    <span>{formatAmount(spent)} spent</span>
+                    <span>Limit: {formatAmount(limit)}</span>
                   </div>
                   <div className="progress" style={{ height: '6px' }}>
                     <div
                       className={`progress-bar ${barColorClass}`}
                       role="progressbar"
                       style={{ width: `${pct}%` }}
-                      aria-valuenow={pct}
-                      aria-valuemin="0"
-                      aria-valuemax="100"
                     ></div>
                   </div>
                 </div>
@@ -180,164 +607,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="row g-4">
-        {/* Quick Add Form with Receipt Attachment Simulator */}
-        <div className="col-lg-5">
-          <div className="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white h-100">
-            <h5 className="fw-bold mb-3">Add Transaction & Receipt</h5>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-2">
-                <label className="form-label small fw-semibold">Title / Merchant</label>
-                <input
-                  type="text"
-                  className="form-control border-0"
-                  placeholder="e.g. Starbucks, Uber, AWS..."
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
+      {/* MODAL: AUTO EXPENSE CALCULATOR */}
+      {showAutoCalcModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered modal-xl" style={{ maxWidth: '950px' }}>
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-light border-0 py-3">
+                <h5 className="modal-title fw-bold text-dark">
+                  <i className="bi bi-calculator text-success me-2"></i>Auto-Calculate Monthly Expenses from Saving Goal
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowAutoCalcModal(false)}></button>
               </div>
-
-              <div className="row g-2 mb-2">
-                <div className="col-6">
-                  <label className="form-label small fw-semibold">Category</label>
-                  <select
-                    className="form-select border-0"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    required
-                  >
-                    <option value="Food & Dining">Food & Dining</option>
-                    <option value="Utilities">Utilities</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="col-6">
-                  <label className="form-label small fw-semibold">Amount ($)</label>
-                  <input
-                    type="number"
-                    className="form-control border-0"
-                    step="0.01"
-                    min="0.01"
-                    placeholder="0.00"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                  />
-                </div>
+              <div className="modal-body p-4 bg-light">
+                <AutoExpenseCalculator onApplied={() => setShowAutoCalcModal(false)} />
               </div>
-
-              <div className="mb-3">
-                <label className="form-label small fw-semibold">Date</label>
-                <input
-                  type="date"
-                  className="form-control border-0"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-
-              {/* Receipt Attachment Simulator */}
-              <div className="mb-3 p-2 bg-white bg-opacity-10 rounded-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="small fw-semibold">
-                    <i className="bi bi-receipt me-1"></i> Receipt Attachment Simulator
-                  </span>
-                  {formData.receipt && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-link text-white p-0 text-decoration-none"
-                      onClick={() => setFormData({ ...formData, receipt: null })}
-                    >
-                      &times; Remove
-                    </button>
-                  )}
-                </div>
-
-                {formData.receipt ? (
-                  <div className="d-flex align-items-center gap-2 bg-white text-dark p-2 rounded-2 small">
-                    <i className="bi bi-file-earmark-check-fill text-success fs-5"></i>
-                    <div className="flex-grow-1 text-truncate">
-                      <strong>{formData.receipt.merchant}</strong>
-                      <div className="text-muted" style={{ fontSize: '11px' }}>
-                        Auto-scanned ${formData.receipt.amount} receipt
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-white-50" style={{ fontSize: '11px', marginBottom: '6px' }}>
-                      Click a sample receipt to simulate OCR auto-fill:
-                    </div>
-                    <div className="d-flex gap-1 flex-wrap">
-                      {sampleReceipts.map((rec) => (
-                        <button
-                          key={rec.id}
-                          type="button"
-                          className="btn btn-xs btn-light text-primary"
-                          style={{ fontSize: '11px', padding: '3px 8px' }}
-                          onClick={() => handleSelectSampleReceipt(rec)}
-                        >
-                          + {rec.merchant} (${rec.amount})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button type="submit" className="btn btn-light w-100 fw-bold py-2 text-primary shadow-sm">
-                Save Transaction
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Recent Transactions List */}
-        <div className="col-lg-7">
-          <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="fw-bold m-0">Recent Activity</h5>
-              <Link to="/transactions" className="btn btn-sm btn-outline-primary rounded-pill px-3">View All</Link>
-            </div>
-            <div className="table-responsive">
-              <table className="table table-borderless align-middle">
-                <tbody>
-                  {recentExpenses.length === 0 ? (
-                    <tr><td className="text-muted py-4">No recent activity.</td></tr>
-                  ) : recentExpenses.map((exp) => (
-                    <tr key={exp.id} className="border-bottom">
-                      <td className="py-3">
-                        <div className="fw-bold text-dark">{exp.title || exp.category}</div>
-                        <div className="text-muted small">{new Date(exp.date).toLocaleDateString()}</div>
-                      </td>
-                      <td>
-                        <span className="badge bg-secondary-subtle text-secondary">{exp.category}</span>
-                      </td>
-                      <td>
-                        {exp.receipt ? (
-                          <span className="badge bg-success-subtle text-success" title="Receipt attached">
-                            <i className="bi bi-paperclip me-1"></i> Receipt
-                          </span>
-                        ) : (
-                          <span className="text-muted small">-</span>
-                        )}
-                      </td>
-                      <td className="text-end fw-bold text-dark">
-                        ${parseFloat(exp.amount).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

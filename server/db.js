@@ -54,6 +54,35 @@ export async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS incomes (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        source VARCHAR(100) NOT NULL,
+        date DATE NOT NULL,
+        notes TEXT NULL,
+        is_recurring BOOLEAN DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS savings_goals (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        target_amount DECIMAL(10, 2) NOT NULL,
+        current_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        target_date DATE NULL,
+        category VARCHAR(100) NOT NULL DEFAULT 'General Savings',
+        color VARCHAR(20) DEFAULT '#0d6efd',
+        notes TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     console.log(`✅ [MySQL] Initialized & connected to database: ${DB_CONFIG.database}`);
     return pool;
   } catch (error) {

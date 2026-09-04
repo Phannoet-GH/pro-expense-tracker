@@ -20,81 +20,127 @@ const TIMEFRAMES = [
 ];
 
 export default function Analytics() {
-  const { expenses } = useContext(ExpenseContext);
+  const { expenses, incomes, formatAmount, currency } = useContext(ExpenseContext);
   const [timeframe, setTimeframe] = useState('all');
 
-  // Filter expenses by timeframe
-  const filteredExpenses = useMemo(() => {
-    if (timeframe === 'all') return expenses;
+  // Filter items by timeframe
+  const { filteredExpenses, filteredIncomes } = useMemo(() => {
+    if (timeframe === 'all') return { filteredExpenses: expenses, filteredIncomes: incomes };
     const now = new Date();
     const days = timeframe === '30d' ? 30 : 90;
     const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    return expenses.filter(e => new Date(e.date) >= cutoff);
-  }, [expenses, timeframe]);
 
-  // Aggregate by category
-  const categoryTotals = useMemo(() => {
+    return {
+      filteredExpenses: expenses.filter(e => new Date(e.date) >= cutoff),
+      filteredIncomes: incomes.filter(i => new Date(i.date) >= cutoff)
+    };
+  }, [expenses, incomes, timeframe]);
+
+  // Aggregate expenses by category
+  const expenseCategoryTotals = useMemo(() => {
     return filteredExpenses.reduce((acc, exp) => {
-      acc[exp.category] = (acc[exp.category] || 0) + parseFloat(exp.amount);
+      acc[exp.category] = (acc[exp.category] || 0) + parseFloat(exp.amount || 0);
       return acc;
     }, {});
   }, [filteredExpenses]);
 
-  const totalSpent = useMemo(() => {
-    return Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
-  }, [categoryTotals]);
+  // Aggregate incomes by source
+  const incomeSourceTotals = useMemo(() => {
+    return filteredIncomes.reduce((acc, inc) => {
+      acc[inc.source] = (acc[inc.source] || 0) + parseFloat(inc.amount || 0);
+      return acc;
+    }, {});
+  }, [filteredIncomes]);
+
+  const periodTotalIncome = useMemo(() => {
+    return Object.values(incomeSourceTotals).reduce((sum, v) => sum + v, 0);
+  }, [incomeSourceTotals]);
+
+  const periodTotalExpense = useMemo(() => {
+    return Object.values(expenseCategoryTotals).reduce((sum, v) => sum + v, 0);
+  }, [expenseCategoryTotals]);
+
+  const periodNetSavings = periodTotalIncome - periodTotalExpense;
+  const periodSavingsRate = periodTotalIncome > 0 ? Math.max(0, (periodNetSavings / periodTotalIncome) * 100) : 0;
 
   // Top Category
-  const topCategoryEntry = useMemo(() => {
-    const entries = Object.entries(categoryTotals);
+  const topExpenseCategory = useMemo(() => {
+    const entries = Object.entries(expenseCategoryTotals);
     if (entries.length === 0) return { category: 'None', amount: 0 };
     return entries.reduce((max, curr) => curr[1] > max.amount ? { category: curr[0], amount: curr[1] } : max, { category: '', amount: 0 });
-  }, [categoryTotals]);
+  }, [expenseCategoryTotals]);
 
-  // Largest Single Purchase
-  const largestPurchase = useMemo(() => {
-    if (filteredExpenses.length === 0) return { title: 'None', amount: 0 };
-    return filteredExpenses.reduce((max, curr) => parseFloat(curr.amount) > max.amount ? { title: curr.title || curr.category, amount: parseFloat(curr.amount) } : max, { title: '', amount: 0 });
-  }, [filteredExpenses]);
+  // Top Income Source
+  const topIncomeSource = useMemo(() => {
+    const entries = Object.entries(incomeSourceTotals);
+    if (entries.length === 0) return { source: 'None', amount: 0 };
+    return entries.reduce((max, curr) => curr[1] > max.amount ? { source: curr[0], amount: curr[1] } : max, { source: '', amount: 0 });
+  }, [incomeSourceTotals]);
 
-  const doughnutData = {
-    labels: Object.keys(categoryTotals),
+  // Income vs Expense Comparison Bar Chart
+  const comparisonBarData = {
+    labels: ['Total Income', 'Total Expenses', 'Net Savings'],
     datasets: [{
-      data: Object.values(categoryTotals),
+      label: `Amount (${currency})`,
+      data: [periodTotalIncome, periodTotalExpense, Math.max(0, periodNetSavings)],
       backgroundColor: [
-        '#0d6efd', // Primary
-        '#198754', // Success
-        '#ffc107', // Warning
-        '#dc3545', // Danger
-        '#6f42c1', // Purple
-        '#fd7e14'  // Orange
+        'rgba(25, 135, 84, 0.85)',  // Income Green
+        'rgba(220, 53, 69, 0.85)',   // Expense Red
+        'rgba(13, 110, 253, 0.85)'   // Savings Blue
       ],
-      borderWidth: 2,
-      borderColor: '#ffffff',
-      hoverOffset: 6
+      borderRadius: 8
     }]
   };
 
-  const barData = {
-    labels: Object.keys(categoryTotals),
+  // Expense Categories Doughnut Chart
+  const expenseDoughnutData = {
+    labels: Object.keys(expenseCategoryTotals),
     datasets: [{
-      label: 'Spending ($)',
-      data: Object.values(categoryTotals),
-      backgroundColor: 'rgba(13, 110, 253, 0.75)',
-      borderRadius: 6,
-      hoverBackgroundColor: 'rgba(13, 110, 253, 0.95)'
+      data: Object.values(expenseCategoryTotals),
+      backgroundColor: [
+        '#0d6efd',
+        '#198754',
+        '#ffc107',
+        '#dc3545',
+        '#6f42c1',
+        '#fd7e14',
+        '#20c997',
+        '#0dcaf0',
+        '#6c757d'
+      ],
+      borderWidth: 2,
+      borderColor: '#ffffff'
+    }]
+  };
+
+  // Income Sources Doughnut Chart
+  const incomeDoughnutData = {
+    labels: Object.keys(incomeSourceTotals),
+    datasets: [{
+      data: Object.values(incomeSourceTotals),
+      backgroundColor: [
+        '#10b981',
+        '#06b6d4',
+        '#6366f1',
+        '#8b5cf6',
+        '#ec4899',
+        '#f59e0b',
+        '#3b82f6'
+      ],
+      borderWidth: 2,
+      borderColor: '#ffffff'
     }]
   };
 
   return (
     <div>
+      {/* Header & Filter */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-          <h3 className="fw-bold m-0">Category Analytics & Reports</h3>
-          <p className="text-muted small m-0">Visual breakdown of your expenditure patterns</p>
+          <h3 className="fw-bold m-0 text-dark">Financial Analytics & Reports</h3>
+          <p className="text-muted small m-0">In-depth breakdown of cash inflows, expenditure patterns, and savings ratios</p>
         </div>
 
-        {/* Timeframe Filter Pills */}
         <div className="btn-group bg-white p-1 rounded-pill shadow-sm border" role="group">
           {TIMEFRAMES.map(tf => (
             <button
@@ -109,55 +155,123 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Analytics Summary Metric Cards */}
+      {/* 4 Summary Cards */}
       <div className="row g-3 mb-4">
         <div className="col-md-3 col-sm-6">
-          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white">
-            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Period Total</span>
-            <h4 className="fw-bold text-primary mt-1 mb-0">${totalSpent.toFixed(2)}</h4>
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Period Income</span>
+            <h4 className="fw-bold text-success mt-1 mb-0">{formatAmount(periodTotalIncome)}</h4>
+            <span className="small text-muted">{filteredIncomes.length} inflow transactions</span>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
-          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white">
-            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Top Category</span>
-            <h4 className="fw-bold text-dark mt-1 mb-0 text-truncate">{topCategoryEntry.category}</h4>
-            <span className="small text-muted">${topCategoryEntry.amount.toFixed(2)} spent</span>
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Period Expenses</span>
+            <h4 className="fw-bold text-danger mt-1 mb-0">{formatAmount(periodTotalExpense)}</h4>
+            <span className="small text-muted">{filteredExpenses.length} purchases</span>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
-          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white">
-            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Largest Expense</span>
-            <h4 className="fw-bold text-danger mt-1 mb-0">${largestPurchase.amount.toFixed(2)}</h4>
-            <span className="small text-muted text-truncate d-block">{largestPurchase.title}</span>
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Net Cash Flow</span>
+            <h4 className={`fw-bold mt-1 mb-0 ${periodNetSavings >= 0 ? 'text-primary' : 'text-danger'}`}>
+              {formatAmount(periodNetSavings)}
+            </h4>
+            <span className="small text-muted">{periodNetSavings >= 0 ? 'Surplus retained' : 'Deficit incurred'}</span>
           </div>
         </div>
         <div className="col-md-3 col-sm-6">
-          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white">
-            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Transactions</span>
-            <h4 className="fw-bold text-success mt-1 mb-0">{filteredExpenses.length}</h4>
-            <span className="small text-muted">Receipts logged</span>
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <span className="text-muted text-uppercase fw-bold" style={{ fontSize: '11px' }}>Savings Efficiency</span>
+            <h4 className="fw-bold text-dark mt-1 mb-0">{periodSavingsRate.toFixed(1)}%</h4>
+            <span className="small text-muted">{periodSavingsRate >= 20 ? 'Strong savings velocity' : 'Target: 20%+'}</span>
           </div>
         </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Comparison Chart Section */}
+      <div className="row g-4 mb-4">
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h5 className="fw-bold mb-3">Cash Inflow vs Outflow Comparison</h5>
+            {filteredExpenses.length > 0 || filteredIncomes.length > 0 ? (
+              <Bar
+                data={comparisonBarData}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: { callback: (val) => `${currency}${val}` }
+                    }
+                  }
+                }}
+              />
+            ) : (
+              <p className="text-muted text-center py-5">No transaction data recorded for this timeframe.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h5 className="fw-bold mb-3">Key Financial Insights</h5>
+            <div className="p-3 bg-light rounded-3 border mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="text-muted small">Top Income Stream</span>
+                <span className="badge bg-success-subtle text-success">Highest Earner</span>
+              </div>
+              <h5 className="fw-bold text-dark mb-0">{topIncomeSource.source}</h5>
+              <div className="small text-muted">{formatAmount(topIncomeSource.amount)} generated</div>
+            </div>
+
+            <div className="p-3 bg-light rounded-3 border mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="text-muted small">Top Expense Category</span>
+                <span className="badge bg-danger-subtle text-danger">Largest Drain</span>
+              </div>
+              <h5 className="fw-bold text-dark mb-0">{topExpenseCategory.category}</h5>
+              <div className="small text-muted">{formatAmount(topExpenseCategory.amount)} spent</div>
+            </div>
+
+            <div className="p-3 bg-light rounded-3 border">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="text-muted small">Income-to-Expense Multiplier</span>
+                <span className="badge bg-primary-subtle text-primary">Health Metric</span>
+              </div>
+              <h5 className="fw-bold text-dark mb-0">
+                {periodTotalExpense > 0 ? (periodTotalIncome / periodTotalExpense).toFixed(2) : 'N/A'}x
+              </h5>
+              <div className="small text-muted">
+                {periodTotalExpense > 0 && (periodTotalIncome / periodTotalExpense) >= 1.25
+                  ? 'Healthy coverage (Income exceeds expenses by > 25%)'
+                  : 'Tight margins (Work on lowering expenses or increasing inflow)'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Doughnut Charts: Expense Breakdown & Income Breakdown */}
       <div className="row g-4">
-        <div className="col-lg-5">
-          <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
-            <h5 className="fw-bold mb-3 text-center">Spending Share by Category</h5>
-            <div style={{ maxWidth: '280px', margin: '0 auto', position: 'relative' }}>
+        {/* Expenses by Category */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h5 className="fw-bold mb-3 text-center">Expense Breakdown by Category</h5>
+            <div style={{ maxWidth: '300px', margin: '0 auto' }}>
               {filteredExpenses.length > 0 ? (
                 <Doughnut
-                  data={doughnutData}
+                  data={expenseDoughnutData}
                   options={{
                     plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14 } },
+                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } },
                       tooltip: {
                         callbacks: {
                           label: (ctx) => {
                             const val = ctx.parsed;
-                            const pct = totalSpent > 0 ? Math.round((val / totalSpent) * 100) : 0;
-                            return ` $${val.toFixed(2)} (${pct}%)`;
+                            const pct = periodTotalExpense > 0 ? Math.round((val / periodTotalExpense) * 100) : 0;
+                            return ` ${formatAmount(val)} (${pct}%)`;
                           }
                         }
                       }
@@ -165,32 +279,39 @@ export default function Analytics() {
                   }}
                 />
               ) : (
-                <p className="text-muted text-center mt-5">No transactions recorded for this period.</p>
+                <p className="text-muted text-center py-5">No expenses recorded for this timeframe.</p>
               )}
             </div>
           </div>
         </div>
 
-        <div className="col-lg-7">
-          <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
-            <h5 className="fw-bold mb-3 text-center">Expenditure Comparison</h5>
-            {filteredExpenses.length > 0 ? (
-              <Bar
-                data={barData}
-                options={{
-                  responsive: true,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: { callback: (val) => `$${val}` }
+        {/* Incomes by Source */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h5 className="fw-bold mb-3 text-center">Income Breakdown by Source</h5>
+            <div style={{ maxWidth: '300px', margin: '0 auto' }}>
+              {filteredIncomes.length > 0 ? (
+                <Doughnut
+                  data={incomeDoughnutData}
+                  options={{
+                    plugins: {
+                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const val = ctx.parsed;
+                            const pct = periodTotalIncome > 0 ? Math.round((val / periodTotalIncome) * 100) : 0;
+                            return ` ${formatAmount(val)} (${pct}%)`;
+                          }
+                        }
+                      }
                     }
-                  }
-                }}
-              />
-            ) : (
-              <p className="text-muted text-center mt-5">No transactions recorded for this period.</p>
-            )}
+                  }}
+                />
+              ) : (
+                <p className="text-muted text-center py-5">No incomes recorded for this timeframe.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

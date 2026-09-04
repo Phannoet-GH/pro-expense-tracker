@@ -41,3 +41,31 @@ export async function parseResponse(res) {
     };
   }
 }
+
+/**
+ * Resilient API fetch that automatically falls back to direct backend URL (http://127.0.0.1:5001)
+ * if the dev proxy or static host returns 404, 405 (Method Not Allowed), or network errors.
+ */
+export async function apiFetch(path, options = {}) {
+  const directBase = 'http://127.0.0.1:5001';
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return fetch(path, options);
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  // 1. Try relative path first
+  try {
+    const res = await fetch(normalizedPath, options);
+    // If the dev server or static host returns 404 or 405 (Method Not Allowed):
+    if (res.status === 404 || res.status === 405) {
+      console.warn(`[apiFetch] ${normalizedPath} returned HTTP ${res.status}. Automatically retrying directly against ${directBase}...`);
+      return await fetch(`${directBase}${normalizedPath}`, options);
+    }
+    return res;
+  } catch (err) {
+    console.warn(`[apiFetch] Direct fetch error on ${normalizedPath}: ${err.message}. Retrying against backend ${directBase}...`);
+    return await fetch(`${directBase}${normalizedPath}`, options);
+  }
+}

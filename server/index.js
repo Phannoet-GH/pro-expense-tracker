@@ -3,7 +3,13 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initDatabase, getPool } from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../dist');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -760,6 +766,17 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to get system stats' });
   }
+});
+
+// Serve static frontend files from dist (production build)
+app.use(express.static(distPath));
+
+// Fallback for SPA routing to index.html (excluding /api routes)
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  }
+  next();
 });
 
 // Initialize DB and launch server

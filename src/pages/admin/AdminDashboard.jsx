@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { ExpenseContext } from '../../context/ExpenseContext';
-import { parseResponse } from '../../utils/api';
+import { parseResponse, apiFetch } from '../../utils/api';
 
 export default function AdminDashboard() {
   const { token } = useContext(UserContext);
@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/stats', {
+      const res = await apiFetch('/api/admin/stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const { ok, data } = await parseResponse(res);

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { UserContext } from './UserContext';
-import { parseResponse } from '../utils/api';
+import { parseResponse, apiFetch } from '../utils/api';
 
 export const ExpenseContext = createContext();
 
@@ -155,7 +155,7 @@ export const ExpenseProvider = ({ children }) => {
     setIsLoading(true);
     try {
       // 1. Health check
-      const healthRes = await fetch('/api/health');
+      const healthRes = await apiFetch('/api/health');
       const { ok: healthOk, data: healthData } = await parseResponse(healthRes);
       if (healthOk && healthData) {
         setDbStatus(healthData.database === 'connected' ? 'connected' : 'connecting');
@@ -163,28 +163,28 @@ export const ExpenseProvider = ({ children }) => {
       }
 
       // 2. Fetch authenticated user's private expenses
-      const expRes = await fetch('/api/expenses', { headers: getAuthHeaders() });
+      const expRes = await apiFetch('/api/expenses', { headers: getAuthHeaders() });
       const { ok: expOk, data: expData } = await parseResponse(expRes);
       if (expOk && Array.isArray(expData)) {
         setExpenses(expData);
       }
 
       // 3. Fetch authenticated user's private incomes
-      const incRes = await fetch('/api/incomes', { headers: getAuthHeaders() });
+      const incRes = await apiFetch('/api/incomes', { headers: getAuthHeaders() });
       const { ok: incOk, data: incData } = await parseResponse(incRes);
       if (incOk && Array.isArray(incData)) {
         setIncomes(incData);
       }
 
       // 4. Fetch authenticated user's private savings goals
-      const goalRes = await fetch('/api/savings-goals', { headers: getAuthHeaders() });
+      const goalRes = await apiFetch('/api/savings-goals', { headers: getAuthHeaders() });
       const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
       if (goalOk && Array.isArray(goalData)) {
         setSavingsGoals(goalData);
       }
 
       // 5. Fetch default budgets
-      const budRes = await fetch('/api/budgets');
+      const budRes = await apiFetch('/api/budgets');
       const { ok: budOk, data: budData } = await parseResponse(budRes);
       if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
         setBudgets(prev => ({ ...prev, ...budData }));
@@ -212,7 +212,7 @@ export const ExpenseProvider = ({ children }) => {
     setExpenses(prev => [newExpense, ...prev]);
 
     try {
-      await fetch('/api/expenses', {
+      await apiFetch('/api/expenses', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newExpense)
@@ -226,7 +226,7 @@ export const ExpenseProvider = ({ children }) => {
     setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? { ...e, ...updatedExpense, amount: parseFloat(updatedExpense.amount) } : e));
 
     try {
-      await fetch(`/api/expenses/${updatedExpense.id}`, {
+      await apiFetch(`/api/expenses/${updatedExpense.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(updatedExpense)
@@ -240,7 +240,7 @@ export const ExpenseProvider = ({ children }) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
 
     try {
-      await fetch(`/api/expenses/${id}`, {
+      await apiFetch(`/api/expenses/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -252,7 +252,7 @@ export const ExpenseProvider = ({ children }) => {
   const clearAllExpenses = async () => {
     setExpenses([]);
     try {
-      await fetch('/api/expenses', {
+      await apiFetch('/api/expenses', {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -273,7 +273,7 @@ export const ExpenseProvider = ({ children }) => {
     setIncomes(prev => [newIncome, ...prev]);
 
     try {
-      await fetch('/api/incomes', {
+      await apiFetch('/api/incomes', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newIncome)
@@ -287,7 +287,7 @@ export const ExpenseProvider = ({ children }) => {
     setIncomes(prev => prev.map(i => i.id === updatedIncome.id ? { ...i, ...updatedIncome, amount: parseFloat(updatedIncome.amount) } : i));
 
     try {
-      await fetch(`/api/incomes/${updatedIncome.id}`, {
+      await apiFetch(`/api/incomes/${updatedIncome.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(updatedIncome)
@@ -301,7 +301,7 @@ export const ExpenseProvider = ({ children }) => {
     setIncomes(prev => prev.filter(i => i.id !== id));
 
     try {
-      await fetch(`/api/incomes/${id}`, {
+      await apiFetch(`/api/incomes/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -313,7 +313,7 @@ export const ExpenseProvider = ({ children }) => {
   const clearAllIncomes = async () => {
     setIncomes([]);
     try {
-      await fetch('/api/incomes', {
+      await apiFetch('/api/incomes', {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -334,7 +334,7 @@ export const ExpenseProvider = ({ children }) => {
     setSavingsGoals(prev => [newGoal, ...prev]);
 
     try {
-      await fetch('/api/savings-goals', {
+      await apiFetch('/api/savings-goals', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newGoal)
@@ -353,7 +353,7 @@ export const ExpenseProvider = ({ children }) => {
     } : g));
 
     try {
-      await fetch(`/api/savings-goals/${updatedGoal.id}`, {
+      await apiFetch(`/api/savings-goals/${updatedGoal.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(updatedGoal)
@@ -375,7 +375,7 @@ export const ExpenseProvider = ({ children }) => {
     }));
 
     try {
-      await fetch(`/api/savings-goals/${id}/deposit`, {
+      await apiFetch(`/api/savings-goals/${id}/deposit`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ amount: amt })
@@ -389,7 +389,7 @@ export const ExpenseProvider = ({ children }) => {
     setSavingsGoals(prev => prev.filter(g => g.id !== id));
 
     try {
-      await fetch(`/api/savings-goals/${id}`, {
+      await apiFetch(`/api/savings-goals/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -401,7 +401,7 @@ export const ExpenseProvider = ({ children }) => {
   const clearAllSavingsGoals = async () => {
     setSavingsGoals([]);
     try {
-      await fetch('/api/savings-goals', {
+      await apiFetch('/api/savings-goals', {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -416,7 +416,7 @@ export const ExpenseProvider = ({ children }) => {
     setBudgets(prev => ({ ...prev, [category]: numAmount }));
 
     try {
-      await fetch('/api/budgets', {
+      await apiFetch('/api/budgets', {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ category, amount: numAmount })
@@ -448,7 +448,7 @@ export const ExpenseProvider = ({ children }) => {
     setBudgets(prev => ({ ...prev, ...categoryBudgets }));
     try {
       for (const [cat, amt] of Object.entries(categoryBudgets)) {
-        await fetch('/api/budgets', {
+        await apiFetch('/api/budgets', {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify({ category: cat, amount: parseFloat(amt) })

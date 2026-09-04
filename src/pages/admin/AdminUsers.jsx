@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
-import { parseResponse } from '../../utils/api';
+import { parseResponse, apiFetch } from '../../utils/api';
 
 export default function AdminUsers() {
   const { token } = useContext(UserContext);
@@ -13,7 +13,7 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await apiFetch('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const { ok, data } = await parseResponse(res);
@@ -34,7 +34,7 @@ export default function AdminUsers() {
   const handleToggleStatus = async (user) => {
     const newStatus = user.status === 'active' ? 'suspended' : 'active';
     try {
-      const res = await fetch(`/api/admin/users/${user.id}/status`, {
+      const res = await apiFetch(`/api/admin/users/${user.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export default function AdminUsers() {
     if (!window.confirm(`Permanently delete account for "${user.name}"? This action cannot be undone.`)) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await apiFetch(`/api/admin/users/${user.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

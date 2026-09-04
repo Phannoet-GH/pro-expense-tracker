@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { ExpenseContext } from '../../context/ExpenseContext';
 import { UserContext } from '../../context/UserContext';
-import { parseResponse } from '../../utils/api';
+import { parseResponse, apiFetch } from '../../utils/api';
 
 export default function AdminSystem() {
   const {
@@ -26,7 +26,7 @@ export default function AdminSystem() {
     setPingStatus(null);
     try {
       const start = performance.now();
-      const res = await fetch('/api/health');
+      const res = await apiFetch('/api/health');
       const end = performance.now();
       const { ok, data } = await parseResponse(res);
       setPingStatus({

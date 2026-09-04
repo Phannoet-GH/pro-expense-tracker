@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { parseResponse } from '../utils/api';
+import { parseResponse, apiFetch } from '../utils/api';
 
 export const UserContext = createContext();
 
@@ -62,7 +62,7 @@ export function UserProvider({ children }) {
     }
 
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await apiFetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${authToken}` }
       });
 
@@ -98,7 +98,7 @@ export function UserProvider({ children }) {
     setAuthError(null);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -128,7 +128,7 @@ export function UserProvider({ children }) {
     setAuthError(null);
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -156,7 +156,7 @@ export function UserProvider({ children }) {
   const logout = async () => {
     if (token) {
       try {
-        await fetch('/api/auth/logout', {
+        await apiFetch('/api/auth/logout', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -173,7 +173,7 @@ export function UserProvider({ children }) {
   const changePassword = async (oldPassword, newPassword) => {
     if (!token) throw new Error('Not authenticated');
 
-    const res = await fetch('/api/auth/change-password', {
+    const res = await apiFetch('/api/auth/change-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

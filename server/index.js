@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const safeBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (safeBody.password) safeBody.password = '***';
+  console.log(`[API INCOMING] ${req.method} ${req.originalUrl || req.url}`, Object.keys(safeBody).length > 0 ? safeBody : '');
+  next();
+});
+
 // ==========================================
 // 1. AUTHENTICATION MIDDLEWARE
 // ==========================================
@@ -756,8 +764,8 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
 
 // Initialize DB and launch server
 initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 SmartFinance PRO API running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 SmartFinance PRO API running on http://127.0.0.1:${PORT}`);
   });
 }).catch(err => {
   console.error('Fatal: Could not connect to MySQL:', err.message);

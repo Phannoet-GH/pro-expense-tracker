@@ -136,16 +136,18 @@ export default function Auth() {
             /* ================= SIGN IN FORM ================= */
             <form onSubmit={handleLoginSubmit}>
               <div className="mb-3">
-                <label className="form-label small fw-semibold text-dark">Email Address</label>
+                <label className="form-label small fw-semibold text-dark">Email or Username</label>
                 <div className="input-group">
                   <span className="input-group-text bg-light border-end-0 text-muted">
-                    <i className="bi bi-envelope"></i>
+                    <i className="bi bi-person"></i>
                   </span>
                   <input
-                    type="email"
+                    type="text"
                     required
+                    autoCapitalize="none"
+                    autoComplete="username"
                     className="form-control bg-light border-start-0"
-                    placeholder="e.g. name@example.com"
+                    placeholder="e.g. admin or name@example.com"
                     value={loginData.email}
                     onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
                   />

@@ -33,8 +33,25 @@ export async function initDatabase() {
 
     // 3. Create schema tables
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        role ENUM('admin', 'client') DEFAULT 'client',
+        title VARCHAR(255) NULL,
+        avatar VARCHAR(500) NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        monthly_target_income DECIMAL(10, 2) DEFAULT 0,
+        target_savings_rate DECIMAL(5, 2) DEFAULT 20,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS expenses (
         id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) DEFAULT 'user-1',
         title VARCHAR(255) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
         category VARCHAR(100) NOT NULL,
@@ -57,6 +74,7 @@ export async function initDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS incomes (
         id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) DEFAULT 'user-1',
         title VARCHAR(255) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
         source VARCHAR(100) NOT NULL,
@@ -71,6 +89,7 @@ export async function initDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS savings_goals (
         id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) DEFAULT 'user-1',
         title VARCHAR(255) NOT NULL,
         target_amount DECIMAL(10, 2) NOT NULL,
         current_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
@@ -82,6 +101,15 @@ export async function initDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Add user_id column if upgrading from older schema
+    try {
+      await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
+      await pool.query(`ALTER TABLE incomes ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
+      await pool.query(`ALTER TABLE savings_goals ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
+    } catch {
+      // Ignored if already exists or MySQL version differences
+    }
 
     console.log(`✅ [MySQL] Initialized & connected to database: ${DB_CONFIG.database}`);
     return pool;

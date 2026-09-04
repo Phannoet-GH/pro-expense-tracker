@@ -413,6 +413,50 @@ app.get('/api/financial-summary', async (req, res) => {
   }
 });
 
+// ==========================================
+// 12. USERS & ADMIN API
+// ==========================================
+app.get('/api/users', async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { id, name, email, role, title, avatar, status, monthly_target_income, target_savings_rate } = req.body;
+    await pool.query(
+      `INSERT INTO users (id, name, email, role, title, avatar, status, monthly_target_income, target_savings_rate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), role=VALUES(role), title=VALUES(title),
+       avatar=VALUES(avatar), status=VALUES(status), monthly_target_income=VALUES(monthly_target_income), target_savings_rate=VALUES(target_savings_rate)`,
+      [id, name, email, role || 'client', title || 'Client', avatar || null, status || 'active', parseFloat(monthly_target_income || 0), parseFloat(target_savings_rate || 20)]
+    );
+    res.status(201).json({ success: true, id });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { id } = req.params;
+    await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 // Initialize DB and launch server
 initDatabase().then(() => {
   app.listen(PORT, () => {
@@ -422,3 +466,4 @@ initDatabase().then(() => {
   console.error('Fatal: Could not connect to MySQL:', err.message);
   process.exit(1);
 });
+

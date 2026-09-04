@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
+import { parseResponse } from '../../utils/api';
 
 export default function AdminUsers() {
   const { token } = useContext(UserContext);
@@ -15,9 +16,9 @@ export default function AdminUsers() {
       const res = await fetch('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data || []);
+      const { ok, data } = await parseResponse(res);
+      if (ok && Array.isArray(data)) {
+        setUsers(data);
       }
     } catch (err) {
       console.error('Failed to fetch admin users:', err);

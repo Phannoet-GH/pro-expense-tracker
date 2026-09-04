@@ -2,20 +2,23 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../../context/UserContext';
 import { ExpenseContext } from '../../context/ExpenseContext';
+import { parseResponse } from '../../utils/api';
 
 export default function AdminDashboard() {
   const { token } = useContext(UserContext);
   const { dbStatus, dbInfo } = useContext(ExpenseContext);
 
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/admin/stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
+      const { ok, data } = await parseResponse(res);
+      if (ok && data) {
         setStats(data);
       }
     } catch (err) {

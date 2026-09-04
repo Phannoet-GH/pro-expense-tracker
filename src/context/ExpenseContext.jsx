@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { UserContext } from './UserContext';
+import { parseResponse } from '../utils/api';
 
 export const ExpenseContext = createContext();
 
@@ -155,40 +156,38 @@ export const ExpenseProvider = ({ children }) => {
     try {
       // 1. Health check
       const healthRes = await fetch('/api/health');
-      if (healthRes.ok) {
-        const healthData = await healthRes.json();
+      const { ok: healthOk, data: healthData } = await parseResponse(healthRes);
+      if (healthOk && healthData) {
         setDbStatus(healthData.database === 'connected' ? 'connected' : 'connecting');
         if (healthData.dbName) setDbInfo(prev => ({ ...prev, dbName: healthData.dbName }));
       }
 
       // 2. Fetch authenticated user's private expenses
       const expRes = await fetch('/api/expenses', { headers: getAuthHeaders() });
-      if (expRes.ok) {
-        const expData = await expRes.json();
-        setExpenses(expData || []);
+      const { ok: expOk, data: expData } = await parseResponse(expRes);
+      if (expOk && Array.isArray(expData)) {
+        setExpenses(expData);
       }
 
       // 3. Fetch authenticated user's private incomes
       const incRes = await fetch('/api/incomes', { headers: getAuthHeaders() });
-      if (incRes.ok) {
-        const incData = await incRes.json();
-        setIncomes(incData || []);
+      const { ok: incOk, data: incData } = await parseResponse(incRes);
+      if (incOk && Array.isArray(incData)) {
+        setIncomes(incData);
       }
 
       // 4. Fetch authenticated user's private savings goals
       const goalRes = await fetch('/api/savings-goals', { headers: getAuthHeaders() });
-      if (goalRes.ok) {
-        const goalData = await goalRes.json();
-        setSavingsGoals(goalData || []);
+      const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
+      if (goalOk && Array.isArray(goalData)) {
+        setSavingsGoals(goalData);
       }
 
       // 5. Fetch default budgets
       const budRes = await fetch('/api/budgets');
-      if (budRes.ok) {
-        const budData = await budRes.json();
-        if (budData && Object.keys(budData).length > 0) {
-          setBudgets(prev => ({ ...prev, ...budData }));
-        }
+      const { ok: budOk, data: budData } = await parseResponse(budRes);
+      if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
+        setBudgets(prev => ({ ...prev, ...budData }));
       }
     } catch (error) {
       console.warn('[ExpenseContext] API error, checking connection:', error.message);

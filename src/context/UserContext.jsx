@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
+import { parseResponse } from '../utils/api';
 
 export const UserContext = createContext();
 
@@ -62,8 +63,9 @@ export function UserProvider({ children }) {
         headers: { Authorization: `Bearer ${authToken}` }
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const { ok, data } = await parseResponse(res);
+
+      if (ok && data?.user) {
         setCurrentUser(data.user);
         localStorage.setItem('smartfinance_current_user', JSON.stringify(data.user));
       } else {
@@ -96,9 +98,9 @@ export function UserProvider({ children }) {
         body: JSON.stringify({ email, password })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
+      const { ok, data } = await parseResponse(res);
+      if (!ok) {
+        throw new Error(data?.error || 'Invalid email or password.');
       }
 
       setToken(data.token);
@@ -126,9 +128,9 @@ export function UserProvider({ children }) {
         body: JSON.stringify(userData)
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Registration failed');
+      const { ok, data } = await parseResponse(res);
+      if (!ok) {
+        throw new Error(data?.error || 'Registration failed.');
       }
 
       setToken(data.token);
@@ -174,9 +176,9 @@ export function UserProvider({ children }) {
       body: JSON.stringify({ oldPassword, newPassword })
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Password update failed');
+    const { ok, data } = await parseResponse(res);
+    if (!ok) {
+      throw new Error(data?.error || 'Password update failed');
     }
     return true;
   };

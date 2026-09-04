@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { ExpenseContext } from '../../context/ExpenseContext';
 import { UserContext } from '../../context/UserContext';
+import { parseResponse } from '../../utils/api';
 
 export default function AdminSystem() {
   const {
@@ -27,9 +28,9 @@ export default function AdminSystem() {
       const start = performance.now();
       const res = await fetch('/api/health');
       const end = performance.now();
-      const data = await res.json();
+      const { ok, data } = await parseResponse(res);
       setPingStatus({
-        ok: res.ok,
+        ok,
         time: Math.round(end - start),
         data
       });

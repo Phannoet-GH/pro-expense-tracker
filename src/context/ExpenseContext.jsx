@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ExpenseContext = createContext();
@@ -19,7 +19,7 @@ export const SAMPLE_RECEIPTS = [
     amount: 14.50,
     category: 'Food & Dining',
     items: ['1x Nitro Cold Brew ($6.50)', '1x Almond Croissant ($5.50)', 'Tax & Tip ($2.50)'],
-    date: '2026-08-28',
+    date: new Date().toISOString().split('T')[0],
     color: '#10b981'
   },
   {
@@ -27,8 +27,8 @@ export const SAMPLE_RECEIPTS = [
     merchant: 'Amazon Web Services',
     amount: 184.20,
     category: 'Utilities',
-    items: ['EC2 t4g.xlarge ($82.00)', 'RDS PostgreSQL ($64.20)', 'S3 & Data Transfer ($38.00)'],
-    date: '2026-08-25',
+    items: ['EC2 t4g.xlarge ($82.00)', 'RDS MySQL ($64.20)', 'S3 & Data Transfer ($38.00)'],
+    date: new Date().toISOString().split('T')[0],
     color: '#6366f1'
   },
   {
@@ -37,7 +37,7 @@ export const SAMPLE_RECEIPTS = [
     amount: 32.40,
     category: 'Transport',
     items: ['UberX Airport Transit ($28.00)', 'Tolls & Surcharge ($4.40)'],
-    date: '2026-08-27',
+    date: new Date().toISOString().split('T')[0],
     color: '#06b6d4'
   },
   {
@@ -46,7 +46,7 @@ export const SAMPLE_RECEIPTS = [
     amount: 92.75,
     category: 'Food & Dining',
     items: ['Organic Groceries ($68.50)', 'Bakery & Deli ($24.25)'],
-    date: '2026-08-29',
+    date: new Date().toISOString().split('T')[0],
     color: '#10b981'
   },
   {
@@ -55,137 +55,202 @@ export const SAMPLE_RECEIPTS = [
     amount: 119.00,
     category: 'Shopping',
     items: ['Keychron Q1 Pro Wireless Mechanical Keyboard ($119.00)'],
-    date: '2026-08-20',
+    date: new Date().toISOString().split('T')[0],
     color: '#f59e0b'
   }
 ];
 
-const SEED_EXPENSES = [
-  {
-    id: 'exp-101',
-    title: 'AWS Cloud Infrastructure',
-    date: '2026-08-25',
-    category: 'Utilities',
-    amount: 184.20,
-    notes: 'Monthly production servers and RDS database hosting',
-    receipt: SAMPLE_RECEIPTS[1]
-  },
-  {
-    id: 'exp-102',
-    title: 'Whole Foods Weekly Groceries',
-    date: '2026-08-29',
-    category: 'Food & Dining',
-    amount: 92.75,
-    notes: 'Produce and pantry essentials',
-    receipt: SAMPLE_RECEIPTS[3]
-  },
-  {
-    id: 'exp-103',
-    title: 'Airport Ride to Tech Summit',
-    date: '2026-08-27',
-    category: 'Transport',
-    amount: 32.40,
-    notes: 'Uber ride from downtown to terminal 2',
-    receipt: SAMPLE_RECEIPTS[2]
-  },
-  {
-    id: 'exp-104',
-    title: 'Team Coffee & Pastries',
-    date: '2026-08-28',
-    category: 'Food & Dining',
-    amount: 14.50,
-    notes: 'Sprint planning catch-up at Starbucks',
-    receipt: SAMPLE_RECEIPTS[0]
-  },
-  {
-    id: 'exp-105',
-    title: 'Ergonomic Mechanical Keyboard',
-    date: '2026-08-20',
-    category: 'Shopping',
-    amount: 119.00,
-    notes: 'Remote home office equipment upgrade',
-    receipt: SAMPLE_RECEIPTS[4]
-  },
-  {
-    id: 'exp-106',
-    title: 'Cinema & IMAX Tickets',
-    date: '2026-08-18',
-    category: 'Entertainment',
-    amount: 38.00,
-    notes: 'Weekend movie with friends',
-    receipt: null
-  }
-];
-
 export const ExpenseProvider = ({ children }) => {
-  const [expenses, setExpenses] = useState(() => {
-    const saved = localStorage.getItem('expenses');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) return parsed;
-      } catch (e) {
-        // fallback to seed
-      }
-    }
-    return SEED_EXPENSES;
-  });
+  // Clean start: 0 demo transactions
+  const [expenses, setExpenses] = useState([]);
+  const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
+  const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline' | 'error'
+  const [dbInfo, setDbInfo] = useState({ dbName: 'pro_expense_tracker', host: '127.0.0.1:3306' });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [budgets, setBudgets] = useState(() => {
-    const saved = localStorage.getItem('category_budgets');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // fallback
+  // Clear legacy mock data from browser localStorage if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('expenses');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If it contains legacy seed IDs, purge it immediately
+        if (Array.isArray(parsed) && parsed.some(e => e.id && e.id.toString().startsWith('exp-10'))) {
+          localStorage.removeItem('expenses');
+        }
       }
+    } catch (e) {
+      localStorage.removeItem('expenses');
     }
-    return DEFAULT_BUDGETS;
-  });
+  }, []);
+
+  // Fetch initial data from MySQL Express backend
+  const refreshFromDb = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 1. Check health
+      const healthRes = await fetch('/api/health');
+      if (!healthRes.ok) throw new Error('Health check failed');
+      const healthData = await healthRes.json();
+      
+      setDbStatus(healthData.database === 'connected' ? 'connected' : 'connecting');
+      if (healthData.dbName) {
+        setDbInfo(prev => ({ ...prev, dbName: healthData.dbName }));
+      }
+
+      // 2. Fetch expenses from MySQL
+      const expRes = await fetch('/api/expenses');
+      if (expRes.ok) {
+        const expData = await expRes.json();
+        setExpenses(expData || []);
+        localStorage.setItem('expenses', JSON.stringify(expData || []));
+      }
+
+      // 3. Fetch budgets from MySQL
+      const budRes = await fetch('/api/budgets');
+      if (budRes.ok) {
+        const budData = await budRes.json();
+        if (budData && Object.keys(budData).length > 0) {
+          setBudgets(prev => ({ ...prev, ...budData }));
+        }
+      }
+    } catch (error) {
+      console.warn('[ExpenseContext] MySQL Backend offline or unreachable:', error.message);
+      setDbStatus('offline');
+      // Fallback to local storage
+      const saved = localStorage.getItem('expenses');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setExpenses(parsed);
+        } catch (e) {}
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-  }, [expenses]);
+    refreshFromDb();
+  }, [refreshFromDb]);
 
+  // Sync expenses to localStorage as backup
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+    }
+  }, [expenses, isLoading]);
+
+  // Sync budgets to localStorage
   useEffect(() => {
     localStorage.setItem('category_budgets', JSON.stringify(budgets));
   }, [budgets]);
 
-  const addExpense = (expense) => {
-    setExpenses(prev => [{ ...expense, id: uuidv4() }, ...prev]);
-  };
+  // 1. ADD EXPENSE (MySQL + State)
+  const addExpense = async (expense) => {
+    const newExpense = {
+      ...expense,
+      id: expense.id || uuidv4(),
+      amount: parseFloat(expense.amount || 0)
+    };
 
-  const updateExpense = (updatedExpense) => {
-    setExpenses(expenses.map(exp => exp.id === updatedExpense.id ? updatedExpense : exp));
-  };
+    // Optimistic UI update
+    setExpenses(prev => [newExpense, ...prev]);
 
-  const deleteExpense = (id) => {
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
-      setExpenses(expenses.filter(exp => exp.id !== id));
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newExpense)
+      });
+      if (!res.ok) {
+        console.error('Failed to save to MySQL');
+      }
+    } catch (err) {
+      console.warn('Backend offline, saved locally only:', err);
+      setDbStatus('offline');
     }
   };
 
-  const updateBudget = (category, amount) => {
-    setBudgets(prev => ({ ...prev, [category]: parseFloat(amount) || 0 }));
+  // 2. UPDATE EXPENSE (MySQL + State)
+  const updateExpense = async (updatedExpense) => {
+    setExpenses(prev => prev.map(exp => exp.id === updatedExpense.id ? updatedExpense : exp));
+
+    try {
+      await fetch(`/api/expenses/${updatedExpense.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedExpense)
+      });
+    } catch (err) {
+      console.warn('Failed to update on MySQL server:', err);
+    }
   };
 
+  // 3. DELETE EXPENSE (MySQL + State)
+  const deleteExpense = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+
+    setExpenses(prev => prev.filter(exp => exp.id !== id));
+
+    try {
+      await fetch(`/api/expenses/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Failed to delete on MySQL server:', err);
+    }
+  };
+
+  // 4. UPDATE BUDGET (MySQL + State)
+  const updateBudget = async (category, amount) => {
+    const numAmount = parseFloat(amount) || 0;
+    setBudgets(prev => ({ ...prev, [category]: numAmount }));
+
+    try {
+      await fetch('/api/budgets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, amount: numAmount })
+      });
+    } catch (err) {
+      console.warn('Failed to persist budget to MySQL:', err);
+    }
+  };
+
+  // 5. CLEAR ALL EXPENSES (MySQL + State)
+  const clearAllExpenses = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete all expense transactions from MySQL database?')) {
+      return;
+    }
+
+    setExpenses([]);
+    localStorage.removeItem('expenses');
+
+    try {
+      await fetch('/api/expenses', {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Failed to clear MySQL expenses table:', err);
+    }
+  };
+
+  // 6. Reset all data (clear clean state)
   const resetAllData = () => {
-    if (window.confirm('Reset all expense data and recurring budgets back to seed demo?')) {
-      setExpenses(SEED_EXPENSES);
-      setBudgets(DEFAULT_BUDGETS);
-    }
-  };
-
-  const clearAllExpenses = () => {
-    if (window.confirm('Are you sure you want to permanently delete all data?')) {
-      setExpenses([]);
-    }
+    clearAllExpenses();
   };
 
   return (
     <ExpenseContext.Provider value={{
       expenses,
       budgets,
+      dbStatus,
+      dbInfo,
+      isLoading,
+      refreshFromDb,
       addExpense,
       updateExpense,
       deleteExpense,

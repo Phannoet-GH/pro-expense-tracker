@@ -50,18 +50,19 @@ app.get('/api/expenses', async (req, res) => {
 app.post('/api/expenses', async (req, res) => {
   try {
     const pool = getPool();
-    const { id, title, amount, category, date, notes, receipt } = req.body;
+    const { id, userId, user_id, title, amount, category, date, notes, receipt } = req.body;
 
     if (!title || amount === undefined || !category || !date) {
       return res.status(400).json({ error: 'Missing required expense fields' });
     }
 
+    const targetUserId = userId || user_id || 'user-1';
     const receiptJson = receipt ? JSON.stringify(receipt) : null;
 
     await pool.query(
-      `INSERT INTO expenses (id, title, amount, category, date, notes, receipt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, parseFloat(amount), category, date, notes || null, receiptJson]
+      `INSERT INTO expenses (id, user_id, title, amount, category, date, notes, receipt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, targetUserId, title, parseFloat(amount), category, date, notes || null, receiptJson]
     );
 
     res.status(201).json({ success: true, id });
@@ -184,16 +185,18 @@ app.get('/api/incomes', async (req, res) => {
 app.post('/api/incomes', async (req, res) => {
   try {
     const pool = getPool();
-    const { id, title, amount, source, date, notes, is_recurring } = req.body;
+    const { id, userId, user_id, title, amount, source, date, notes, is_recurring } = req.body;
 
     if (!title || amount === undefined || !source || !date) {
       return res.status(400).json({ error: 'Missing required income fields' });
     }
 
+    const targetUserId = userId || user_id || 'user-1';
+
     await pool.query(
-      `INSERT INTO incomes (id, title, amount, source, date, notes, is_recurring)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, parseFloat(amount), source, date, notes || null, is_recurring ? 1 : 0]
+      `INSERT INTO incomes (id, user_id, title, amount, source, date, notes, is_recurring)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, targetUserId, title, parseFloat(amount), source, date, notes || null, is_recurring ? 1 : 0]
     );
 
     res.status(201).json({ success: true, id });
@@ -275,17 +278,20 @@ app.get('/api/savings-goals', async (req, res) => {
 app.post('/api/savings-goals', async (req, res) => {
   try {
     const pool = getPool();
-    const { id, title, target_amount, current_amount, target_date, category, color, notes } = req.body;
+    const { id, userId, user_id, title, target_amount, current_amount, target_date, category, color, notes } = req.body;
 
     if (!title || target_amount === undefined) {
       return res.status(400).json({ error: 'Title and target amount are required' });
     }
 
+    const targetUserId = userId || user_id || 'user-1';
+
     await pool.query(
-      `INSERT INTO savings_goals (id, title, target_amount, current_amount, target_date, category, color, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO savings_goals (id, user_id, title, target_amount, current_amount, target_date, category, color, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
+        targetUserId,
         title,
         parseFloat(target_amount),
         parseFloat(current_amount || 0),

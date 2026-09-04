@@ -46,8 +46,8 @@ export default function Auth() {
     e.preventDefault();
     if (!registerData.name || !registerData.email || !registerData.password) return;
 
-    if (registerData.password.length < 8) {
-      setAuthError('Password must be at least 8 characters long.');
+    if (registerData.password.length < 4) {
+      setAuthError('Password must be at least 4 characters long.');
       return;
     }
 
@@ -218,10 +218,15 @@ export default function Auth() {
                         </span>
                         <div>
                           <strong className="text-dark small d-block">{demo.name}</strong>
-                          <span className="text-muted" style={{ fontSize: '10px' }}>{demo.email}</span>
+                          <span className="text-muted d-block" style={{ fontSize: '11px' }}>{demo.email}</span>
+                          <span className="text-primary fw-semibold" style={{ fontSize: '11px' }}>
+                            <i className="bi bi-key-fill me-1"></i>Password: <code>{demo.easyPassword || demo.password}</code>
+                          </span>
                         </div>
                       </div>
-                      <i className="bi bi-arrow-right text-muted"></i>
+                      <span className="btn btn-sm btn-primary py-0 px-2 rounded-pill" style={{ fontSize: '11px' }}>
+                        Login &rarr;
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -230,6 +235,11 @@ export default function Auth() {
           ) : (
             /* ================= REGISTER FORM ================= */
             <form onSubmit={handleRegisterSubmit}>
+              <div className="alert alert-info border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3" style={{ fontSize: '12px' }}>
+                <i className="bi bi-info-circle-fill flex-shrink-0"></i>
+                <div>Create any personal account (passwords can be 4+ characters, e.g. <code>123456</code>).</div>
+              </div>
+
               <div className="mb-3">
                 <label className="form-label small fw-semibold text-dark">Full Legal Name</label>
                 <input
@@ -293,15 +303,15 @@ export default function Auth() {
               <div className="mb-4">
                 <div className="d-flex justify-content-between align-items-center">
                   <label className="form-label small fw-semibold text-dark">Password</label>
-                  <span className="text-muted small" style={{ fontSize: '11px' }}>Min. 8 characters</span>
+                  <span className="text-muted small" style={{ fontSize: '11px' }}>Min. 4 characters</span>
                 </div>
                 <div className="input-group mb-1">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={8}
+                    minLength={4}
                     className="form-control bg-light border-end-0"
-                    placeholder="Create a strong password"
+                    placeholder="Create your password"
                     value={registerData.password}
                     onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                   />
@@ -327,7 +337,7 @@ export default function Auth() {
                     <div className="d-flex justify-content-between text-muted mt-1" style={{ fontSize: '10px' }}>
                       <span>Security Strength:</span>
                       <strong className={passStrength >= 75 ? 'text-success' : passStrength >= 50 ? 'text-warning' : 'text-danger'}>
-                        {passStrength >= 75 ? 'Strong' : passStrength >= 50 ? 'Moderate' : 'Too Weak'}
+                        {passStrength >= 75 ? 'Strong' : passStrength >= 50 ? 'Moderate' : 'Basic'}
                       </strong>
                     </div>
                   </div>
@@ -337,7 +347,7 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-success w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                className="btn btn-success w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 mb-3"
               >
                 {isLoading ? (
                   <>
@@ -351,6 +361,16 @@ export default function Auth() {
                   </>
                 )}
               </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="btn btn-link text-decoration-none small text-muted p-0"
+                  onClick={() => { setActiveTab('login'); setAuthError(null); }}
+                >
+                  Already registered? <strong className="text-primary">Sign in here &rarr;</strong>
+                </button>
+              </div>
             </form>
           )}
         </div>

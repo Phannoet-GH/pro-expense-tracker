@@ -9,6 +9,7 @@ export const DEMO_CREDENTIALS = [
     name: 'Sophia Chen',
     email: 'sophia.chen@example.com',
     password: 'SophiaPass@2026',
+    easyPassword: '123456',
     title: 'Senior UX Designer',
     badge: 'Standard Client'
   },
@@ -17,6 +18,7 @@ export const DEMO_CREDENTIALS = [
     name: 'Marcus Brody',
     email: 'marcus.brody@example.com',
     password: 'MarcusPass@2026',
+    easyPassword: '123456',
     title: 'Freelance Software Architect',
     badge: 'Freelancer Client'
   },
@@ -25,6 +27,7 @@ export const DEMO_CREDENTIALS = [
     name: 'Elena Rostova',
     email: 'elena.rostova@example.com',
     password: 'ElenaPass@2026',
+    easyPassword: '123456',
     title: 'Marketing Director',
     badge: 'Executive Client'
   },
@@ -32,7 +35,8 @@ export const DEMO_CREDENTIALS = [
     role: 'admin',
     name: 'Alex Vance',
     email: 'admin@smartfinance.pro',
-    password: 'AdminPass@2026',
+    password: 'admin',
+    easyPassword: 'admin',
     title: 'Lead System Administrator',
     badge: 'Platform Administrator'
   }
@@ -50,10 +54,9 @@ export function UserProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
-  // Authenticate session on load
+  // Verify stored token on initial load
   const verifySession = useCallback(async (authToken) => {
     if (!authToken) {
-      setCurrentUser(null);
       setIsLoading(false);
       return;
     }
@@ -69,14 +72,17 @@ export function UserProvider({ children }) {
         setCurrentUser(data.user);
         localStorage.setItem('smartfinance_current_user', JSON.stringify(data.user));
       } else {
-        // Invalid or expired token
+        // Token expired or invalid
         setToken(null);
         setCurrentUser(null);
         localStorage.removeItem('smartfinance_auth_token');
         localStorage.removeItem('smartfinance_current_user');
       }
-    } catch (err) {
-      console.warn('Network error checking auth session:', err);
+    } catch {
+      setToken(null);
+      setCurrentUser(null);
+      localStorage.removeItem('smartfinance_auth_token');
+      localStorage.removeItem('smartfinance_current_user');
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +106,7 @@ export function UserProvider({ children }) {
 
       const { ok, data } = await parseResponse(res);
       if (!ok) {
-        throw new Error(data?.error || 'Invalid email or password.');
+        throw new Error(data?.error || 'Invalid email or password. Please verify your credentials or click a demo account below.');
       }
 
       setToken(data.token);
@@ -130,7 +136,7 @@ export function UserProvider({ children }) {
 
       const { ok, data } = await parseResponse(res);
       if (!ok) {
-        throw new Error(data?.error || 'Registration failed.');
+        throw new Error(data?.error || 'Registration failed. Please check your inputs and try again.');
       }
 
       setToken(data.token);

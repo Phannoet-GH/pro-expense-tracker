@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || '127.0.0.1',
@@ -10,18 +11,15 @@ const DB_CONFIG = {
 
 async function seed() {
   const pool = mysql.createPool(DB_CONFIG);
-  console.log('🌱 Starting MySQL database seed...');
+  console.log('🌱 Starting secure MySQL database seed...');
 
-  // Ensure user_id column exists on older tables
-  try {
-    await pool.query("ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) DEFAULT 'user-1'");
-  } catch (e) { /* ignore */ }
-  try {
-    await pool.query("ALTER TABLE expenses ADD COLUMN user_id VARCHAR(64) DEFAULT 'user-1'");
-  } catch (e) { /* ignore */ }
-  try {
-    await pool.query("ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) DEFAULT 'user-1'");
-  } catch (e) { /* ignore */ }
+  // Ensure tables and columns
+  try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''"); } catch {}
+  try { await pool.query("ALTER TABLE users ADD COLUMN auth_token VARCHAR(255) NULL"); } catch {}
+  try { await pool.query("ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL"); } catch {}
+  try { await pool.query("ALTER TABLE expenses ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
+  try { await pool.query("ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
+  try { await pool.query("ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
 
   const today = new Date();
   const formatDate = (daysAgo) => {
@@ -29,12 +27,13 @@ async function seed() {
     return d.toISOString().split('T')[0];
   };
 
-  // 1. Seed Users
+  // 1. Seed Users with Bcrypt Hashed Passwords
   const users = [
     {
       id: 'user-admin',
       name: 'Alex Vance',
-      email: 'alex.vance@smartfinance.pro',
+      email: 'admin@smartfinance.pro',
+      password: 'AdminPass@2026',
       role: 'admin',
       title: 'Lead System Administrator',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -46,6 +45,7 @@ async function seed() {
       id: 'user-1',
       name: 'Sophia Chen',
       email: 'sophia.chen@example.com',
+      password: 'SophiaPass@2026',
       role: 'client',
       title: 'Senior UX Designer',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
@@ -57,6 +57,7 @@ async function seed() {
       id: 'user-2',
       name: 'Marcus Brody',
       email: 'marcus.brody@example.com',
+      password: 'MarcusPass@2026',
       role: 'client',
       title: 'Freelance Software Architect',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
@@ -68,6 +69,7 @@ async function seed() {
       id: 'user-3',
       name: 'Elena Rostova',
       email: 'elena.rostova@example.com',
+      password: 'ElenaPass@2026',
       role: 'client',
       title: 'Marketing Director',
       avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
@@ -78,15 +80,16 @@ async function seed() {
   ];
 
   for (const u of users) {
+    const password_hash = bcrypt.hashSync(u.password, 10);
     await pool.query(
-      `INSERT INTO users (id, name, email, role, title, avatar, status, monthly_target_income, target_savings_rate)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), role=VALUES(role), title=VALUES(title),
-       avatar=VALUES(avatar), status=VALUES(status), monthly_target_income=VALUES(monthly_target_income), target_savings_rate=VALUES(target_savings_rate)`,
-      [u.id, u.name, u.email, u.role, u.title, u.avatar, u.status, u.monthly_target_income, u.target_savings_rate]
+      `INSERT INTO users (id, name, email, password_hash, role, title, avatar, status, monthly_target_income, target_savings_rate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), password_hash=VALUES(password_hash), role=VALUES(role),
+       title=VALUES(title), avatar=VALUES(avatar), status=VALUES(status), monthly_target_income=VALUES(monthly_target_income), target_savings_rate=VALUES(target_savings_rate)`,
+      [u.id, u.name, u.email, password_hash, u.role, u.title, u.avatar, u.status, u.monthly_target_income, u.target_savings_rate]
     );
   }
-  console.log(`✅ Seeded ${users.length} users`);
+  console.log(`✅ Seeded ${users.length} users with bcrypt password hashes`);
 
   // 2. Seed Budgets
   const budgets = [
@@ -99,7 +102,8 @@ async function seed() {
 
   for (const [cat, amt] of budgets) {
     await pool.query(
-      `INSERT INTO budgets (category, amount) VALUES (?, ?) ON DUPLICATE KEY UPDATE amount=VALUES(amount)`,
+      `INSERT INTO budgets (category, amount) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE amount=VALUES(amount)`,
       [cat, amt]
     );
   }
@@ -107,14 +111,14 @@ async function seed() {
 
   // 3. Seed Incomes
   const incomes = [
-    // Sophia Chen
+    // Sophia Chen (user-1)
     { id: 'inc-1', user_id: 'user-1', title: 'Monthly Base Salary', amount: 4500.00, source: 'Salary', date: formatDate(2), notes: 'Tech Corp direct deposit', is_recurring: 1 },
     { id: 'inc-2', user_id: 'user-1', title: 'UX Consulting Project', amount: 950.00, source: 'Freelance', date: formatDate(8), notes: 'Design audit deliverables', is_recurring: 0 },
     { id: 'inc-3', user_id: 'user-1', title: 'Index ETF Dividends', amount: 120.00, source: 'Investments', date: formatDate(15), notes: 'Quarterly payout', is_recurring: 1 },
-    // Marcus Brody
+    // Marcus Brody (user-2)
     { id: 'inc-4', user_id: 'user-2', title: 'Cloud Architecture Retainer', amount: 3200.00, source: 'Freelance', date: formatDate(3), notes: 'Monthly DevOps architecture retainer', is_recurring: 1 },
     { id: 'inc-5', user_id: 'user-2', title: 'Database Cutover Milestone', amount: 1000.00, source: 'Bonus & Gifts', date: formatDate(12), notes: 'Production cutover success bonus', is_recurring: 0 },
-    // Elena Rostova
+    // Elena Rostova (user-3)
     { id: 'inc-6', user_id: 'user-3', title: 'Executive Director Payroll', amount: 5800.00, source: 'Salary', date: formatDate(1), notes: 'Executive corporate payroll', is_recurring: 1 },
     { id: 'inc-7', user_id: 'user-3', title: 'Real Estate Rental Inflow', amount: 650.00, source: 'Rental', date: formatDate(10), notes: 'Condo tenant payment', is_recurring: 1 }
   ];
@@ -123,7 +127,7 @@ async function seed() {
     await pool.query(
       `INSERT INTO incomes (id, user_id, title, amount, source, date, notes, is_recurring)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE title=VALUES(title), amount=VALUES(amount), source=VALUES(source), date=VALUES(date), notes=VALUES(notes)` ,
+       ON DUPLICATE KEY UPDATE title=VALUES(title), amount=VALUES(amount), source=VALUES(source), date=VALUES(date), notes=VALUES(notes)`,
       [inc.id, inc.user_id, inc.title, inc.amount, inc.source, inc.date, inc.notes, inc.is_recurring]
     );
   }
@@ -186,7 +190,7 @@ async function seed() {
   console.log(`✅ Seeded ${goals.length} savings goals`);
 
   await pool.end();
-  console.log('🎉 Database successfully seeded with real production data!');
+  console.log('🎉 Database successfully seeded with secure hashed credentials!');
 }
 
 seed().catch(err => {

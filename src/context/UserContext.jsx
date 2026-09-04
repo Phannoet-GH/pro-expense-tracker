@@ -1,170 +1,202 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 export const UserContext = createContext();
 
-export const INITIAL_USERS = [
+export const DEMO_CREDENTIALS = [
   {
-    id: 'user-admin',
-    name: 'Alex Vance',
-    email: 'alex.vance@smartfinance.pro',
-    role: 'admin',
-    title: 'Lead System Administrator',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    status: 'active',
-    monthlyTargetIncome: 8000,
-    targetSavingsRate: 35,
-    joinDate: '2025-01-15'
-  },
-  {
-    id: 'user-1',
+    role: 'client',
     name: 'Sophia Chen',
     email: 'sophia.chen@example.com',
-    role: 'client',
+    password: 'SophiaPass@2026',
     title: 'Senior UX Designer',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    status: 'active',
-    monthlyTargetIncome: 5500,
-    targetSavingsRate: 25,
-    joinDate: '2025-02-10'
+    badge: 'Standard Client'
   },
   {
-    id: 'user-2',
+    role: 'client',
     name: 'Marcus Brody',
     email: 'marcus.brody@example.com',
-    role: 'client',
+    password: 'MarcusPass@2026',
     title: 'Freelance Software Architect',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    status: 'active',
-    monthlyTargetIncome: 4200,
-    targetSavingsRate: 20,
-    joinDate: '2025-03-01'
+    badge: 'Freelancer Client'
   },
   {
-    id: 'user-3',
+    role: 'client',
     name: 'Elena Rostova',
     email: 'elena.rostova@example.com',
-    role: 'client',
+    password: 'ElenaPass@2026',
     title: 'Marketing Director',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    status: 'active',
-    monthlyTargetIncome: 6200,
-    targetSavingsRate: 30,
-    joinDate: '2025-04-18'
+    badge: 'Executive Client'
+  },
+  {
+    role: 'admin',
+    name: 'Alex Vance',
+    email: 'admin@smartfinance.pro',
+    password: 'AdminPass@2026',
+    title: 'Lead System Administrator',
+    badge: 'Platform Administrator'
   }
 ];
 
 export function UserProvider({ children }) {
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('smartfinance_users');
-    if (saved) {
+  const [token, setToken] = useState(() => localStorage.getItem('smartfinance_auth_token') || null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem('smartfinance_current_user');
+    if (savedUser) {
+      try { return JSON.parse(savedUser); } catch {}
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+
+  // Authenticate session on load
+  const verifySession = useCallback(async (authToken) => {
+    if (!authToken) {
+      setCurrentUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        localStorage.setItem('smartfinance_current_user', JSON.stringify(data.user));
+      } else {
+        // Invalid or expired token
+        setToken(null);
+        setCurrentUser(null);
+        localStorage.removeItem('smartfinance_auth_token');
+        localStorage.removeItem('smartfinance_current_user');
+      }
+    } catch (err) {
+      console.warn('Network error checking auth session:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    verifySession(token);
+  }, [token, verifySession]);
+
+  // Login
+  const login = async (email, password) => {
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      setToken(data.token);
+      setCurrentUser(data.user);
+      localStorage.setItem('smartfinance_auth_token', data.token);
+      localStorage.setItem('smartfinance_current_user', JSON.stringify(data.user));
+      return { success: true, user: data.user };
+    } catch (err) {
+      setAuthError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Register
+  const register = async (userData) => {
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      setToken(data.token);
+      setCurrentUser(data.user);
+      localStorage.setItem('smartfinance_auth_token', data.token);
+      localStorage.setItem('smartfinance_current_user', JSON.stringify(data.user));
+      return { success: true, user: data.user };
+    } catch (err) {
+      setAuthError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Logout
+  const logout = async () => {
+    if (token) {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved users:', e);
-      }
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch {}
     }
-    return INITIAL_USERS;
-  });
 
-  const [currentUserId, setCurrentUserId] = useState(() => {
-    return localStorage.getItem('smartfinance_current_user_id') || 'user-1';
-  });
+    setToken(null);
+    setCurrentUser(null);
+    localStorage.removeItem('smartfinance_auth_token');
+    localStorage.removeItem('smartfinance_current_user');
+  };
 
-  const [activeRole, setActiveRole] = useState(() => {
-    return localStorage.getItem('smartfinance_active_role') || 'client';
-  });
+  // Change Password
+  const changePassword = async (oldPassword, newPassword) => {
+    if (!token) throw new Error('Not authenticated');
 
-  // Save changes
-  useEffect(() => {
-    localStorage.setItem('smartfinance_users', JSON.stringify(users));
-  }, [users]);
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ oldPassword, newPassword })
+    });
 
-  useEffect(() => {
-    localStorage.setItem('smartfinance_current_user_id', currentUserId);
-  }, [currentUserId]);
-
-  useEffect(() => {
-    localStorage.setItem('smartfinance_active_role', activeRole);
-  }, [activeRole]);
-
-  // Current user object
-  const currentUser = users.find(u => u.id === currentUserId) || users[1] || users[0];
-
-  // Switch active user
-  const switchUser = useCallback((userId) => {
-    const found = users.find(u => u.id === userId);
-    if (found) {
-      setCurrentUserId(userId);
-      setActiveRole(found.role);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Password update failed');
     }
-  }, [users]);
-
-  // Switch role directly
-  const switchRole = useCallback((role) => {
-    setActiveRole(role);
-    if (role === 'admin') {
-      const adminUser = users.find(u => u.role === 'admin') || users[0];
-      setCurrentUserId(adminUser.id);
-    } else {
-      const clientUser = users.find(u => u.role === 'client') || users[1];
-      setCurrentUserId(clientUser.id);
-    }
-  }, [users]);
-
-  // Add new client user
-  const addUser = useCallback((userData) => {
-    const newUser = {
-      id: `user-${uuidv4().substring(0, 8)}`,
-      role: 'client',
-      status: 'active',
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=0D8ABC&color=fff`,
-      joinDate: new Date().toISOString().split('T')[0],
-      monthlyTargetIncome: parseFloat(userData.monthlyTargetIncome) || 4000,
-      targetSavingsRate: parseFloat(userData.targetSavingsRate) || 20,
-      ...userData
-    };
-    setUsers(prev => [newUser, ...prev]);
-    return newUser;
-  }, []);
-
-  // Update user
-  const updateUser = useCallback((id, updates) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
-  }, []);
-
-  // Delete user
-  const deleteUser = useCallback((id) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    if (currentUserId === id) {
-      setCurrentUserId(users[0]?.id || 'user-admin');
-    }
-  }, [currentUserId, users]);
-
-  // Toggle user status (active/suspended)
-  const toggleUserStatus = useCallback((id) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextStatus = u.status === 'active' ? 'suspended' : 'active';
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
-  }, []);
+    return true;
+  };
 
   return (
     <UserContext.Provider
       value={{
-        users,
+        token,
         currentUser,
-        currentUserId,
-        activeRole,
-        switchUser,
-        switchRole,
-        addUser,
-        updateUser,
-        deleteUser,
-        toggleUserStatus
+        currentUserId: currentUser?.id,
+        activeRole: currentUser?.role || 'client',
+        isAuthenticated: Boolean(currentUser && token),
+        isLoading,
+        authError,
+        setAuthError,
+        login,
+        register,
+        logout,
+        changePassword,
+        demoCredentials: DEMO_CREDENTIALS
       }}
     >
       {children}

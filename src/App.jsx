@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
 import { ExpenseProvider } from './context/ExpenseContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Auth from './pages/Auth';
 
 // Client Portal Components
 import Layout from './components/Layout';
@@ -15,7 +17,6 @@ import Settings from './pages/Settings';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
-import AdminAudit from './pages/admin/AdminAudit';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminSystem from './pages/admin/AdminSystem';
 
@@ -30,8 +31,18 @@ export default function App() {
       <ExpenseProvider>
         <BrowserRouter>
           <Routes>
-            {/* Client-Side Portal Routes */}
-            <Route path="/" element={<Layout />}>
+            {/* Public Authentication Route */}
+            <Route path="/auth" element={<Auth />} />
+
+            {/* Authenticated Client-Side Portal Routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="savings" element={<SavingsHub />} />
@@ -39,11 +50,17 @@ export default function App() {
               <Route path="settings" element={<Settings />} />
             </Route>
 
-            {/* Admin-Side Portal Routes */}
-            <Route path="/admin" element={<AdminLayout />}>
+            {/* Admin-Side Portal Routes (Admin Role Guarded) */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
-              <Route path="audit" element={<AdminAudit />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="system" element={<AdminSystem />} />
             </Route>

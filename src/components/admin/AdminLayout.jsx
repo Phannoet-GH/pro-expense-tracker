@@ -4,12 +4,16 @@ import { UserContext } from '../../context/UserContext';
 import { ExpenseContext } from '../../context/ExpenseContext';
 
 export default function AdminLayout() {
-  const { currentUser, switchRole } = useContext(UserContext);
-  const { dbStatus, dbInfo, refreshFromDb, adminMetrics, formatAmount } = useContext(ExpenseContext);
+  const { currentUser, logout } = useContext(UserContext);
+  const { dbStatus, dbInfo, refreshFromDb } = useContext(ExpenseContext);
   const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/auth');
+  };
+
   const handleSwitchToClient = () => {
-    switchRole('client');
     navigate('/');
   };
 
@@ -27,13 +31,13 @@ export default function AdminLayout() {
             </div>
           </div>
           <div className="text-secondary small mt-1 fw-normal" style={{ fontSize: '11px' }}>
-            Enterprise Management Console
+            Infrastructure Operations Console
           </div>
         </div>
 
         <div className="list-group list-group-flush my-3 px-3 gap-1">
           <div className="text-uppercase text-secondary px-3 py-1 fw-bold" style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
-            Platform Control
+            Platform Governance
           </div>
 
           <NavLink
@@ -42,32 +46,19 @@ export default function AdminLayout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : 'hover-overlay'}`}
           >
             <i className="bi bi-speedometer2 text-info"></i>
-            <span>Overview & KPIs</span>
+            <span>Overview &amp; Telemetry</span>
           </NavLink>
 
           <NavLink
             to="/admin/users"
-            className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center justify-content-between ${isActive ? 'bg-primary text-white shadow-sm' : 'hover-overlay'}`}
-          >
-            <div className="d-flex align-items-center gap-2">
-              <i className="bi bi-people-fill text-warning"></i>
-              <span>Client Accounts</span>
-            </div>
-            <span className="badge bg-secondary rounded-pill" style={{ fontSize: '10px' }}>
-              {adminMetrics?.totalClients || 3}
-            </span>
-          </NavLink>
-
-          <NavLink
-            to="/admin/audit"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : 'hover-overlay'}`}
           >
-            <i className="bi bi-file-earmark-spreadsheet-fill text-success"></i>
-            <span>Master Audit Trail</span>
+            <i className="bi bi-people-fill text-warning"></i>
+            <span>User Accounts</span>
           </NavLink>
 
           <div className="text-uppercase text-secondary px-3 pt-3 pb-1 fw-bold" style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
-            System & Policies
+            System Policies
           </div>
 
           <NavLink
@@ -83,38 +74,48 @@ export default function AdminLayout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : 'hover-overlay'}`}
           >
             <i className="bi bi-database-gear text-danger"></i>
-            <span>Database & Health</span>
+            <span>Database &amp; Latency</span>
           </NavLink>
         </div>
 
-        {/* Portal Switcher in Sidebar Footer */}
+        {/* Portal Switcher & Logout in Sidebar Footer */}
         <div className="mt-auto p-3 border-top border-secondary border-opacity-25">
           <div className="p-3 bg-secondary bg-opacity-25 rounded-3 mb-3 border border-secondary border-opacity-25">
             <div className="d-flex align-items-center gap-2 mb-2">
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                 alt="Admin"
-                width="36"
-                height="36"
+                width="34"
+                height="34"
                 className="rounded-circle border border-2 border-danger"
               />
               <div className="overflow-hidden">
                 <div className="fw-bold text-white small text-truncate">{currentUser?.name || 'Administrator'}</div>
-                <div className="text-secondary" style={{ fontSize: '10px' }}>Super Admin</div>
+                <div className="text-secondary text-truncate" style={{ fontSize: '10px' }}>{currentUser?.email}</div>
               </div>
             </div>
-            <div className="small text-secondary" style={{ fontSize: '11px' }}>
-              Logged in with full administrative privileges.
+            <div className="small text-success d-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
+              <i className="bi bi-shield-check"></i> Zero-Knowledge Mode Active
             </div>
           </div>
 
-          <button
-            onClick={handleSwitchToClient}
-            className="btn btn-outline-light w-100 rounded-pill py-2 small fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
-          >
-            <i className="bi bi-arrow-left-circle"></i>
-            <span>Switch to Client Portal</span>
-          </button>
+          <div className="d-flex flex-column gap-2">
+            <button
+              onClick={handleSwitchToClient}
+              className="btn btn-sm btn-outline-light w-100 rounded-pill py-2 small fw-semibold d-flex align-items-center justify-content-center gap-2"
+            >
+              <i className="bi bi-arrow-left-circle"></i>
+              <span>Open Personal View</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="btn btn-sm btn-danger w-100 rounded-pill py-2 small fw-bold d-flex align-items-center justify-content-center gap-2"
+            >
+              <i className="bi bi-box-arrow-right"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -123,12 +124,12 @@ export default function AdminLayout() {
         {/* Admin Topbar */}
         <nav className="navbar navbar-expand-lg navbar-light bg-white py-3 px-4 shadow-sm border-bottom">
           <div className="d-flex align-items-center flex-wrap gap-2">
-            <span className="badge bg-danger-subtle text-danger px-2 py-1 rounded fw-bold text-uppercase" style={{ fontSize: '11px' }}>
-              Admin Console
+            <span className="badge bg-danger text-white px-2 py-1 rounded fw-bold text-uppercase" style={{ fontSize: '11px' }}>
+              Super Admin Console
             </span>
             <span className="text-muted small">|</span>
-            <span className="text-muted small">
-              Platform Managed Capital: <strong className="text-dark">{formatAmount(adminMetrics?.totalPlatformVolume || 0)}</strong>
+            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
+              <i className="bi bi-shield-lock-fill me-1"></i>Client Data Isolated &amp; Private
             </span>
           </div>
 
@@ -137,7 +138,7 @@ export default function AdminLayout() {
             {dbStatus === 'connected' && (
               <span className="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center px-3 py-2" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                 <span className="spinner-grow spinner-grow-sm text-success me-2" style={{ width: '0.5rem', height: '0.5rem' }} role="status"></span>
-                <i className="bi bi-database-check me-1"></i> MySQL: {dbInfo?.dbName || 'pro_expense_tracker'} (Online)
+                <i className="bi bi-database-check me-1"></i> MySQL: {dbInfo?.dbName || 'pro_expense_tracker'}
               </span>
             )}
             {dbStatus === 'offline' && (
@@ -147,17 +148,16 @@ export default function AdminLayout() {
                 title="Click to retry connecting"
                 style={{ fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
               >
-                <i className="bi bi-database-x me-1"></i> MySQL Offline (Click to Retry)
+                <i className="bi bi-database-x me-1"></i> MySQL Offline
               </span>
             )}
 
-            {/* Quick Exit to Client */}
             <button
-              onClick={handleSwitchToClient}
-              className="btn btn-sm btn-primary rounded-pill px-3 fw-bold d-flex align-items-center gap-1 shadow-sm"
+              onClick={handleLogout}
+              className="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
             >
-              <i className="bi bi-person-fill"></i>
-              <span>Client Portal</span>
+              <i className="bi bi-box-arrow-right"></i>
+              <span>Sign Out</span>
             </button>
           </div>
         </nav>

@@ -37,10 +37,13 @@ export async function initDatabase() {
         id VARCHAR(64) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
         role ENUM('admin', 'client') DEFAULT 'client',
         title VARCHAR(255) NULL,
         avatar VARCHAR(500) NULL,
         status VARCHAR(50) DEFAULT 'active',
+        auth_token VARCHAR(255) NULL,
+        last_login TIMESTAMP NULL,
         monthly_target_income DECIMAL(10, 2) DEFAULT 0,
         target_savings_rate DECIMAL(5, 2) DEFAULT 20,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -51,7 +54,7 @@ export async function initDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS expenses (
         id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(64) DEFAULT 'user-1',
+        user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
         category VARCHAR(100) NOT NULL,
@@ -59,22 +62,25 @@ export async function initDatabase() {
         notes TEXT NULL,
         receipt JSON NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_expenses (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS budgets (
-        category VARCHAR(100) PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL DEFAULT 'global',
+        category VARCHAR(100) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, category)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS incomes (
         id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(64) DEFAULT 'user-1',
+        user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
         source VARCHAR(100) NOT NULL,
@@ -82,14 +88,15 @@ export async function initDatabase() {
         notes TEXT NULL,
         is_recurring BOOLEAN DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_incomes (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS savings_goals (
         id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(64) DEFAULT 'user-1',
+        user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         target_amount DECIMAL(10, 2) NOT NULL,
         current_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
@@ -98,18 +105,18 @@ export async function initDatabase() {
         color VARCHAR(20) DEFAULT '#0d6efd',
         notes TEXT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_goals (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Add user_id column if upgrading from older schema
-    try {
-      await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
-      await pool.query(`ALTER TABLE incomes ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
-      await pool.query(`ALTER TABLE savings_goals ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) DEFAULT 'user-1';`);
-    } catch {
-      // Ignored if already exists or MySQL version differences
-    }
+    // Schema migrations for existing databases
+    try { await pool.query(`ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT '';`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN auth_token VARCHAR(255) NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE expenses ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
+    try { await pool.query(`ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
+    try { await pool.query(`ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
 
     console.log(`✅ [MySQL] Initialized & connected to database: ${DB_CONFIG.database}`);
     return pool;

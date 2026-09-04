@@ -1,29 +1,77 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
-import { ExpenseContext } from '../../context/ExpenseContext';
 
 export default function AdminUsers() {
-  const { users, addUser, deleteUser, toggleUserStatus, switchUser } = useContext(UserContext);
-  const { adminMetrics, formatAmount } = useContext(ExpenseContext);
-  const navigate = useNavigate();
-
+  const { token } = useContext(UserContext);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState(null);
 
-  // New user form state
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    title: '',
-    monthlyTargetIncome: '',
-    targetSavingsRate: '25'
-  });
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const clientUsers = users.filter(u => u.role === 'client');
+  useEffect(() => {
+    fetchUsers();
+  }, [token]);
 
-  const filteredUsers = clientUsers.filter(u => {
+  const handleToggleStatus = async (user) => {
+    const newStatus = user.status === 'active' ? 'suspended' : 'active';
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+        setActionMessage(`Account for ${user.name} was ${newStatus === 'active' ? 'activated' : 'suspended'}.`);
+        setTimeout(() => setActionMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error('Status update error:', err);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Permanently delete account for "${user.name}"? This action cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setUsers(prev => prev.filter(u => u.id !== user.id));
+        setActionMessage(`Account for ${user.name} was deleted.`);
+        setTimeout(() => setActionMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  };
+
+  const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (u.title && u.title.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -31,50 +79,40 @@ export default function AdminUsers() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleOpenClient = (userId) => {
-    switchUser(userId);
-    navigate('/');
-  };
-
-  const handleCreateUser = (e) => {
-    e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
-
-    addUser({
-      name: newUser.name,
-      email: newUser.email,
-      title: newUser.title || 'Client',
-      monthlyTargetIncome: parseFloat(newUser.monthlyTargetIncome) || 4000,
-      targetSavingsRate: parseFloat(newUser.targetSavingsRate) || 20
-    });
-
-    setNewUser({ name: '', email: '', title: '', monthlyTargetIncome: '', targetSavingsRate: '25' });
-    setShowAddModal(false);
-  };
-
   return (
     <div>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h2 className="fs-4 fw-bold text-dark mb-1">
-            <i className="bi bi-people-fill text-warning me-2"></i>Client Accounts Directory
+            <i className="bi bi-people-fill text-warning me-2"></i>User Accounts Directory
           </h2>
           <p className="text-muted small mb-0">
-            View, onboard, and manage client user accounts and audit their individual balance sheets.
+            Account lifecycle management &amp; status governance.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary rounded-pill px-4 shadow-sm d-flex align-items-center gap-2"
-        >
-          <i className="bi bi-person-plus-fill"></i>
-          <span>Add New Client</span>
-        </button>
+        {actionMessage && (
+          <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill">
+            <i className="bi bi-info-circle me-1"></i>{actionMessage}
+          </span>
+        )}
       </div>
 
-      {/* Filters & Search */}
+      {/* Zero-Knowledge Privacy Notice Banner */}
+      <div className="alert alert-success border-0 shadow-sm rounded-4 mb-4 p-3 d-flex align-items-center gap-3">
+        <span className="p-2 bg-success text-white rounded-circle flex-shrink-0">
+          <i className="bi bi-shield-check fs-5"></i>
+        </span>
+        <div className="small">
+          <strong className="d-block text-success-emphasis">Zero-Knowledge Financial Privacy Enforced</strong>
+          <span className="text-success-emphasis text-opacity-75">
+            By system design, administrators cannot view client transactions, incomes, expenses, or private balances, and cannot impersonate client sessions. Each user's financial ledger is strictly isolated to their own authenticated session.
+          </span>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
       <div className="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">
         <div className="row g-3 align-items-center">
           <div className="col-12 col-md-6">
@@ -85,7 +123,7 @@ export default function AdminUsers() {
               <input
                 type="text"
                 className="form-control bg-light border-start-0"
-                placeholder="Search clients by name, email, or job title..."
+                placeholder="Search accounts by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -98,239 +136,109 @@ export default function AdminUsers() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="all">All Statuses ({clientUsers.length})</option>
-              <option value="active">Active Accounts</option>
-              <option value="suspended">Suspended Accounts</option>
+              <option value="all">All Accounts ({users.length})</option>
+              <option value="active">Active Only</option>
+              <option value="suspended">Suspended Only</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-4">
+      <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light small text-muted text-uppercase" style={{ fontSize: '11px', letterSpacing: '0.05em' }}>
               <tr>
-                <th className="ps-4">Client User</th>
-                <th>Target Income</th>
-                <th>Actual Inflows</th>
-                <th>Actual Spending</th>
-                <th>Net Balance</th>
-                <th>Savings Rate</th>
+                <th className="ps-4">User Account</th>
+                <th>Role</th>
                 <th>Status</th>
-                <th className="text-end pe-4">Actions</th>
+                <th>Registered Date</th>
+                <th>Last Active Login</th>
+                <th className="text-end pe-4">Account Controls</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-5 text-muted">
-                    <i className="bi bi-person-slash fs-1 d-block mb-2 text-secondary"></i>
-                    No client accounts match your search query.
+                  <td colSpan="6" className="text-center py-5">
+                    <span className="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
+                    Loading user directory...
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-5 text-muted">
+                    No accounts found matching your query.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map(user => {
-                  const stats = adminMetrics?.userStats?.[user.id] || {
-                    totalIncome: 0,
-                    totalExpense: 0,
-                    netSavings: 0,
-                    savingsRate: 0,
-                    transactionCount: 0
-                  };
-
-                  return (
-                    <tr key={user.id}>
-                      <td className="ps-4">
-                        <div className="d-flex align-items-center gap-3">
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            width="42"
-                            height="42"
-                            className="rounded-circle border"
-                          />
-                          <div>
-                            <div className="fw-bold text-dark">{user.name}</div>
-                            <div className="text-muted small" style={{ fontSize: '11px' }}>{user.email}</div>
-                            <span className="badge bg-light text-secondary border mt-1" style={{ fontSize: '10px' }}>
-                              {user.title || 'Client'}
-                            </span>
-                          </div>
+                filteredUsers.map(user => (
+                  <tr key={user.id}>
+                    <td className="ps-4">
+                      <div className="d-flex align-items-center gap-3">
+                        <img
+                          src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff`}
+                          alt={user.name}
+                          width="38"
+                          height="38"
+                          className="rounded-circle border"
+                        />
+                        <div>
+                          <div className="fw-bold text-dark">{user.name}</div>
+                          <div className="text-muted small" style={{ fontSize: '11px' }}>{user.email}</div>
+                          <span className="badge bg-light text-secondary border mt-1" style={{ fontSize: '10px' }}>
+                            {user.title || 'Client'}
+                          </span>
                         </div>
-                      </td>
-                      <td className="fw-bold text-dark">
-                        {formatAmount(user.monthlyTargetIncome || 0)}
-                        <span className="text-muted small d-block" style={{ fontSize: '10px' }}>target / mo</span>
-                      </td>
-                      <td className="text-success fw-bold">{formatAmount(stats.totalIncome)}</td>
-                      <td className="text-danger fw-bold">{formatAmount(stats.totalExpense)}</td>
-                      <td>
-                        <strong className={stats.netSavings >= 0 ? 'text-success' : 'text-danger'}>
-                          {formatAmount(stats.netSavings)}
-                        </strong>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center gap-2">
-                          <div className="progress flex-grow-1" style={{ height: '6px', width: '60px' }}>
-                            <div
-                              className="progress-bar bg-success"
-                              role="progressbar"
-                              style={{ width: `${Math.min(100, Math.round(stats.savingsRate))}%` }}
-                            ></div>
-                          </div>
-                          <span className="small fw-bold">{Math.round(stats.savingsRate)}%</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge rounded-pill ${user.status === 'active' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'}`}>
-                          {user.status === 'active' ? 'Active' : 'Suspended'}
-                        </span>
-                      </td>
-                      <td className="text-end pe-4">
-                        <div className="d-flex gap-1 justify-content-end">
-                          {/* Open Client Portal */}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge rounded-pill ${user.role === 'admin' ? 'bg-danger text-white' : 'bg-primary-subtle text-primary border border-primary-subtle'}`}>
+                        {user.role === 'admin' ? 'Super Admin' : 'Client User'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge rounded-pill ${user.status === 'active' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'}`}>
+                        {user.status === 'active' ? 'Active' : 'Suspended'}
+                      </span>
+                    </td>
+                    <td className="text-muted small font-monospace">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="text-muted small font-monospace">
+                      {user.last_login ? new Date(user.last_login).toLocaleString() : 'Never logged in'}
+                    </td>
+                    <td className="text-end pe-4">
+                      {user.role !== 'admin' && (
+                        <div className="d-flex gap-2 justify-content-end">
                           <button
-                            onClick={() => handleOpenClient(user.id)}
-                            className="btn btn-sm btn-outline-primary rounded-pill px-3"
-                            title="Open client's personalized finance dashboard"
+                            onClick={() => handleToggleStatus(user)}
+                            className={`btn btn-sm ${user.status === 'active' ? 'btn-outline-warning' : 'btn-outline-success'} rounded-pill px-3 py-1`}
+                            title={user.status === 'active' ? 'Suspend account' : 'Reactivate account'}
                           >
-                            <i className="bi bi-box-arrow-in-right me-1"></i>Open Client View
+                            <i className={`bi ${user.status === 'active' ? 'bi-pause-circle me-1' : 'bi-play-circle me-1'}`}></i>
+                            {user.status === 'active' ? 'Suspend' : 'Activate'}
                           </button>
 
-                          {/* Toggle Status */}
                           <button
-                            onClick={() => toggleUserStatus(user.id)}
-                            className="btn btn-sm btn-outline-secondary rounded-circle"
-                            style={{ width: '32px', height: '32px', padding: 0 }}
-                            title={user.status === 'active' ? 'Suspend account' : 'Activate account'}
-                          >
-                            <i className={`bi ${user.status === 'active' ? 'bi-pause-fill' : 'bi-play-fill'}`}></i>
-                          </button>
-
-                          {/* Delete */}
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Delete client "${user.name}"?`)) {
-                                deleteUser(user.id);
-                              }
-                            }}
+                            onClick={() => handleDeleteUser(user)}
                             className="btn btn-sm btn-outline-danger rounded-circle"
                             style={{ width: '32px', height: '32px', padding: 0 }}
-                            title="Delete user"
+                            title="Delete user account"
                           >
                             <i className="bi bi-trash"></i>
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Add User Modal */}
-      {showAddModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content rounded-4 border-0 shadow">
-              <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title fw-bold">
-                  <i className="bi bi-person-plus text-primary me-2"></i>Onboard New Client Account
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddModal(false)}
-                ></button>
-              </div>
-
-              <form onSubmit={handleCreateUser}>
-                <div className="modal-body py-3">
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold">Full Legal Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. David Miller"
-                      required
-                      value={newUser.name}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold">Email Address</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      placeholder="e.g. david.miller@example.com"
-                      required
-                      value={newUser.email}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold">Occupation / Title</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Senior Data Analyst"
-                      value={newUser.title}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, title: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="row g-2">
-                    <div className="col-6 mb-3">
-                      <label className="form-label small fw-semibold">Target Monthly Income ($)</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        placeholder="e.g. 5000"
-                        value={newUser.monthlyTargetIncome}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, monthlyTargetIncome: e.target.value }))}
-                      />
-                    </div>
-                    <div className="col-6 mb-3">
-                      <label className="form-label small fw-semibold">Target Saving Rate (%)</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        min="5"
-                        max="80"
-                        value={newUser.targetSavingsRate}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, targetSavingsRate: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="modal-footer border-0 pt-0">
-                  <button
-                    type="button"
-                    className="btn btn-light rounded-pill px-4"
-                    onClick={() => setShowAddModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary rounded-pill px-4 fw-bold"
-                  >
-                    Create Client Account
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

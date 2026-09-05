@@ -898,7 +898,7 @@ export default function SavingsHub() {
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
                   className="form-control"
                   value={compoundInputs.initial}
                   onChange={(e) => setCompoundInputs({ ...compoundInputs, initial: e.target.value })}
@@ -909,8 +909,8 @@ export default function SavingsHub() {
                 <label className="form-label small fw-semibold text-muted">Monthly Contribution ({currency}/month)</label>
                 <input
                   type="number"
-                  min="10"
-                  step="25"
+                  min="0"
+                  step="any"
                   className="form-control"
                   value={compoundInputs.monthly}
                   onChange={(e) => setCompoundInputs({ ...compoundInputs, monthly: e.target.value })}
@@ -1190,8 +1190,8 @@ export default function SavingsHub() {
                       <label className="form-label small fw-semibold text-muted">Target Amount ({currency})</label>
                       <input
                         type="number"
-                        step="10"
-                        min="1"
+                        step="any"
+                        min="0.01"
                         className="form-control"
                         placeholder="e.g. 5000"
                         value={goalForm.target_amount}
@@ -1203,7 +1203,7 @@ export default function SavingsHub() {
                       <label className="form-label small fw-semibold text-muted">Current Amount ({currency})</label>
                       <input
                         type="number"
-                        step="10"
+                        step="any"
                         min="0"
                         className="form-control"
                         placeholder="e.g. 500"
@@ -1305,8 +1305,8 @@ export default function SavingsHub() {
                     <span className="input-group-text">{currency}</span>
                     <input
                       type="number"
-                      step="1"
-                      min="1"
+                      step="any"
+                      min="0.01"
                       className="form-control form-control-lg text-center fw-bold"
                       placeholder="Amount"
                       value={depositAmount}

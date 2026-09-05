@@ -338,7 +338,7 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
               <input
                 type="number"
                 min="0"
-                step="50"
+                step="any"
                 className="form-control form-control-lg fw-bold"
                 value={incomeInput}
                 onChange={(e) => {
@@ -377,7 +377,7 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
               <input
                 type="number"
                 min="0"
-                step="25"
+                step="any"
                 className="form-control form-control-lg fw-bold text-success"
                 value={savingGoalInput}
                 onChange={(e) => {
@@ -630,7 +630,7 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
                       <input
                         type="number"
                         min="0"
-                        step="10"
+                        step="any"
                         className="form-control form-control-sm text-end fw-bold"
                         value={calculatedLimit || ''}
                         onChange={(e) => handleDollarChange(cat, e.target.value)}

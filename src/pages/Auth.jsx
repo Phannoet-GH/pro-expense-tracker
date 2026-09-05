@@ -235,8 +235,8 @@ export default function Auth() {
                   <label className="form-label small fw-semibold text-dark">Target Income ($/mo)</label>
                   <input
                     type="number"
-                    min="100"
-                    step="100"
+                    min="0"
+                    step="any"
                     className="form-control bg-light"
                     value={registerData.monthly_target_income}
                     onChange={(e) => setRegisterData(prev => ({ ...prev, monthly_target_income: e.target.value }))}

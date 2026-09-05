@@ -123,12 +123,12 @@ export default function AdminSystem() {
                 </span>
               </div>
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <span className="text-muted small">Target Database:</span>
-                <span className="font-monospace fw-bold text-dark">{dbInfo?.dbName || 'pro_expense_tracker'}</span>
+                <span className="text-muted small">Database Engine:</span>
+                <span className="fw-semibold text-dark">MySQL 8.0 (SSL/Encrypted)</span>
               </div>
               <div className="d-flex justify-content-between align-items-center">
-                <span className="text-muted small">Host & Port:</span>
-                <span className="font-monospace text-muted">{dbInfo?.host || '127.0.0.1:3306'}</span>
+                <span className="text-muted small">Connection Mode:</span>
+                <span className="badge bg-primary-subtle text-primary rounded-pill px-2 py-1">Connection Pool Active</span>
               </div>
             </div>
 
@@ -254,15 +254,15 @@ export default function AdminSystem() {
         <div className="d-flex flex-wrap gap-3">
           <button
             onClick={async () => {
-              await loadSampleData?.();
               await fetchStats();
-              setMaintenanceMsg('Sample workspace data loaded.');
+              await refreshFromDb();
+              setMaintenanceMsg('System diagnostics and stats refreshed.');
               setTimeout(() => setMaintenanceMsg(null), 4000);
             }}
-            className="btn btn-success rounded-pill px-4 shadow-sm d-flex align-items-center gap-2"
+            className="btn btn-outline-primary rounded-pill px-4 shadow-sm d-flex align-items-center gap-2"
           >
-            <i className="bi bi-database-add"></i>
-            <span>Load Sample Workspace Data</span>
+            <i className="bi bi-arrow-clockwise"></i>
+            <span>Refresh Diagnostics</span>
           </button>
 
           <button

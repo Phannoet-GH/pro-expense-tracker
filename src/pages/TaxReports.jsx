@@ -288,7 +288,7 @@ export default function TaxReports() {
           <div className="card border-0 rounded-4 shadow-sm p-3 h-100 bg-white">
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-muted small fw-medium">Deduction Ratio</span>
-              <div className="p-2 rounded-3 bg-purple-subtle text-purple" style={{ backgroundColor: '#ede9fe', color: '#6d28d9' }}>
+              <div className="p-2 rounded-3 bg-purple-subtle text-purple">
                 <i className="bi bi-percent"></i>
               </div>
             </div>

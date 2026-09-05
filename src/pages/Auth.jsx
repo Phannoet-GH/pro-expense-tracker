@@ -132,7 +132,7 @@ export default function Auth() {
                     autoCapitalize="none"
                     autoComplete="username"
                     className="form-control bg-light border-start-0"
-                    placeholder="e.g. admin or name@example.com"
+                    placeholder="Enter your email or username"
                     value={loginData.email}
                     onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
                   />
@@ -189,7 +189,7 @@ export default function Auth() {
             <form onSubmit={handleRegisterSubmit}>
               <div className="alert alert-info border-0 rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-3" style={{ fontSize: '12px' }}>
                 <i className="bi bi-info-circle-fill flex-shrink-0"></i>
-                <div>Create any personal account (passwords can be 4+ characters, e.g. <code>123456</code>).</div>
+                <div>Create a client account to track expenses, budgets, and savings goals securely.</div>
               </div>
 
               <div className="mb-3">

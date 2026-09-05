@@ -8,6 +8,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Auth from './pages/Auth';
 import LandingPage from './pages/LandingPage';
+import NotFound from './pages/NotFound';
 
 // Client Portal Components
 import Layout from './components/Layout';
@@ -79,8 +80,8 @@ export default function App() {
                     <Route path="system" element={<AdminSystem />} />
                   </Route>
 
-                  {/* Fallback */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  {/* 404 Fallback */}
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
             </ExpenseProvider>

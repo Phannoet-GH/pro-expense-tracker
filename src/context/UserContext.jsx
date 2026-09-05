@@ -22,15 +22,15 @@ export function UserProvider({ children }) {
     const input = (email || '').trim().toLowerCase();
 
     // 1. Super Administrator Check
-    if ((input === 'admin@smartfinance.pro' || input === 'admin' || input === 'administrator') && password === 'admin') {
+    if ((input === 'admin@gmail.com' || input === 'admin@smartfinance.pro' || input === 'admin' || input === 'administrator') && password === 'admin') {
       const adminUser = {
         id: 'usr-admin-master',
-        name: 'Admin Director',
-        email: 'admin@smartfinance.pro',
+        name: 'Administrator',
+        email: 'admin@gmail.com',
         role: 'admin',
         status: 'active',
         plan_tier: 'enterprise',
-        avatar: 'https://ui-avatars.com/api/?name=Admin+Director&background=0D8ABC&color=fff'
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
       };
       const mockToken = `mock-jwt-admin-${Date.now()}`;
       setToken(mockToken);
@@ -40,8 +40,8 @@ export function UserProvider({ children }) {
       return { success: true, user: adminUser };
     }
 
-    if ((input === 'admin@smartfinance.pro' || input === 'admin') && password !== 'admin') {
-      throw new Error('Invalid password for Super Administrator. (Default credentials: admin / admin)');
+    if ((input === 'admin@gmail.com' || input === 'admin@smartfinance.pro' || input === 'admin') && password !== 'admin') {
+      throw new Error('Invalid password for Administrator.');
     }
 
     // 2. Local Registered Users Check
@@ -247,9 +247,9 @@ export function UserProvider({ children }) {
         isBackendOffline = true;
       }
 
-      // Backend is unreachable — fail clearly instead of using localStorage accounts
+      // Backend is unreachable
       if (isBackendOffline) {
-        throw new Error('Cannot reach the backend server. Please make sure the server is running on port 5001 before signing in.');
+        throw new Error('Cannot reach the server. Please check your internet connection or try again later.');
       }
 
       throw new Error(apiData?.error || 'Invalid email or password. Please check your credentials and try again.');
@@ -295,9 +295,9 @@ export function UserProvider({ children }) {
         isBackendOffline = true;
       }
 
-      // Backend is unreachable — fail clearly instead of silently saving to localStorage
+      // Backend is unreachable
       if (isBackendOffline) {
-        throw new Error('Cannot reach the backend server. Please make sure the server is running on port 5001 before registering.');
+        throw new Error('Cannot reach the server. Please check your internet connection or try again later.');
       }
 
       throw new Error(apiData?.error || 'Registration failed. Please check your inputs and try again.');

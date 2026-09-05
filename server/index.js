@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDatabase, getPool } from './db.js';
@@ -14,8 +16,36 @@ const distPath = path.resolve(__dirname, '../dist');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// Trust reverse proxy (Railway, Render, Nginx) for proper IP tracking
+app.set('trust proxy', 1);
+
+// Security HTTP headers
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+
 app.use(cors());
 app.use(express.json());
+
+// Global API rate limiting (180 requests per minute per IP)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 180,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' }
+});
+app.use('/api/', apiLimiter);
+
+// Dedicated authentication rate limiting (30 attempts per 15 minutes per IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' }
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -23,6 +53,32 @@ app.use((req, res, next) => {
   if (safeBody.password) safeBody.password = '***';
   console.log(`[API INCOMING] ${req.method} ${req.originalUrl || req.url}`, Object.keys(safeBody).length > 0 ? safeBody : '');
   next();
+});
+
+// GET /api/health
+app.get('/api/health', async (req, res) => {
+  try {
+    const pool = getPool();
+    if (pool) {
+      await pool.query('SELECT 1');
+      return res.json({
+        status: 'healthy',
+        database: 'connected',
+        timestamp: new Date().toISOString()
+      });
+    }
+    res.json({
+      status: 'degraded',
+      database: 'uninitialized',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // ==========================================
@@ -108,31 +164,11 @@ export const requireTier = (minTier = 'pro') => {
 const generateToken = () => crypto.randomBytes(32).toString('hex');
 
 // ==========================================
-// 2. HEALTH CHECK
-// ==========================================
-app.get('/api/health', async (req, res) => {
-  try {
-    const pool = getPool();
-    if (!pool) return res.status(503).json({ status: 'connecting', database: 'initializing' });
-    await pool.query('SELECT 1');
-    res.json({
-      status: 'ok',
-      database: 'connected',
-      dbName: process.env.DB_NAME || 'pro_expense_tracker',
-      host: `${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '3306'}`,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
-// ==========================================
-// 3. AUTHENTICATION ENDPOINTS
+// 2. AUTHENTICATION ENDPOINTS
 // ==========================================
 
 // POST /api/auth/register
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const pool = getPool();
     const { name, email, password } = req.body;
@@ -195,7 +231,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const pool = getPool();
     const { email, password } = req.body;
@@ -206,20 +242,19 @@ app.post('/api/auth/login', async (req, res) => {
 
     const input = email.trim().toLowerCase();
 
-    // Query by exact email, first/full name, or role alias (e.g. 'admin', 'sophia')
+    // Query by exact email, first/full name, or role alias (e.g. 'admin')
     const [rows] = await pool.query(
       `SELECT * FROM users 
        WHERE email = ? 
-          OR LOWER(name) LIKE ? 
+          OR LOWER(name) = ? 
           OR (role = 'admin' AND ? IN ('admin', 'administrator'))
-          OR email LIKE ?
        LIMIT 1`,
-      [input, `%${input}%`, input, `${input}%`]
+      [input, input, input]
     );
 
     if (rows.length === 0) {
       return res.status(401).json({
-        error: `No account found for "${input}". You can create a new account or use 1-Click Demo Login below.`
+        error: 'Invalid email or password. Please check your credentials and try again.'
       });
     }
 
@@ -229,34 +264,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account is suspended. Please contact administrator.' });
     }
 
-    let isMatch = await bcrypt.compare(password, user.password_hash);
-
-    // Fallback support for friendly demo passwords
-    if (!isMatch) {
-      const allowedAdmin = ['admin', 'admin123', 'adminpass@2026', 'password', '123456'];
-      const allowedClient = [
-        '123456',
-        'password',
-        'client',
-        'sophiapass@2026',
-        'marcuspass@2026',
-        'elenapass@2026',
-        user.name.toLowerCase().split(' ')[0]
-      ];
-
-      const lowerPass = password.toLowerCase();
-      if (user.role === 'admin' && (allowedAdmin.includes(lowerPass) || password === 'AdminPass@2026')) {
-        isMatch = true;
-      } else if (allowedClient.includes(lowerPass) || ['SophiaPass@2026', 'MarcusPass@2026', 'ElenaPass@2026'].includes(password)) {
-        isMatch = true;
-      }
-    }
+    const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
       return res.status(401).json({
-        error: user.role === 'admin'
-          ? 'Incorrect password. For Admin, try password: admin (or AdminPass@2026)'
-          : 'Incorrect password. Try password "123456" or click a 1-Click Demo card.'
+        error: 'Invalid email or password. Please check your credentials and try again.'
       });
     }
 

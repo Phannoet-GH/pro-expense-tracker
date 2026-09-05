@@ -630,49 +630,6 @@ export const ExpenseProvider = ({ children }) => {
     await clearAllSavingsGoals();
   };
 
-  const loadSampleData = async () => {
-    try {
-      await addIncome({
-        title: 'Tech Salary (Direct Deposit)',
-        amount: 5200.00,
-        source: 'Salary',
-        date: new Date().toISOString().split('T')[0],
-        is_recurring: true
-      });
-      await addIncome({
-        title: 'Freelance UI/UX Consulting',
-        amount: 1450.00,
-        source: 'Freelance',
-        date: new Date().toISOString().split('T')[0],
-        is_recurring: false
-      });
-      await addExpense({
-        title: 'Whole Foods Market',
-        amount: 184.50,
-        category: 'Groceries',
-        date: new Date().toISOString().split('T')[0],
-        payment_method: 'Credit Card',
-        is_tax_deductible: false
-      });
-      await addExpense({
-        title: 'AWS Cloud Hosting',
-        amount: 79.99,
-        category: 'Utilities',
-        date: new Date().toISOString().split('T')[0],
-        payment_method: 'Credit Card',
-        is_tax_deductible: true
-      });
-      await addSavingsGoal({
-        title: 'Emergency Rainy Day Fund',
-        target_amount: 10000.00,
-        current_amount: 3200.00,
-        category: 'Emergency Fund'
-      });
-    } catch (err) {
-      console.warn('Failed to load sample data:', err);
-    }
-  };
-
   return (
     <ExpenseContext.Provider value={{
       expenses,
@@ -689,7 +646,6 @@ export const ExpenseProvider = ({ children }) => {
       dbInfo,
       isLoading,
       refreshFromDb,
-      loadSampleData,
       resetAllData,
       addExpense,
       updateExpense,

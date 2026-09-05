@@ -31,8 +31,8 @@ export default function AdminUsers() {
       const localUsers = JSON.parse(localStorage.getItem('smartfinance_local_users') || '[]');
       const adminEntry = {
         id: 'usr-admin-master',
-        name: 'Admin Director',
-        email: 'admin@smartfinance.pro',
+        name: 'Administrator',
+        email: 'admin@gmail.com',
         role: 'admin',
         status: 'active',
         created_at: new Date().toISOString()

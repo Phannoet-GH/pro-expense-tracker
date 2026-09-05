@@ -805,13 +805,13 @@ export default function SavingsHub() {
               </div>
 
               {/* High-Yield Affiliate Recommendation Cards */}
-              <div className="p-3 mb-3 rounded-3" style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1px solid #bfdbfe' }}>
+              <div className="p-3 mb-3 rounded-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <div>
                     <span className="badge bg-primary text-white rounded-pill px-2 py-1 mb-1" style={{ fontSize: '10px' }}>
                       TOP HYSA PICK
                     </span>
-                    <h6 className="fw-bold text-dark mb-0">Wealthfront Cash</h6>
+                    <h6 className="fw-bold mb-0">Wealthfront Cash</h6>
                   </div>
                   <span className="badge bg-success text-white fw-bold fs-6">5.00% APY</span>
                 </div>

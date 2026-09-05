@@ -30,10 +30,10 @@ async function seed() {
   // 1. Seed Super Admin User with Bcrypt Hashed Password
   const users = [
     {
-      id: 'user-admin',
-      name: 'Alex Vance',
-      email: 'admin@smartfinance.pro',
-      password: 'AdminPass@2026',
+      id: 'admin-gmail-id',
+      name: 'Administrator',
+      email: 'admin@gmail.com',
+      password: 'admin',
       role: 'admin',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       status: 'active',

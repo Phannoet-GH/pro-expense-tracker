@@ -68,20 +68,20 @@ export default function LandingPage() {
         <div className="container px-lg-4 py-4 text-center">
           <div className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary-subtle text-primary fw-semibold small mb-3 border border-primary-subtle shadow-xs">
             <i className="bi bi-stars"></i>
-            <span>New: AI Receipt OCR &amp; Schedule C Tax Suite</span>
+            <span>Smart Expense Tracking &amp; Financial Intelligence</span>
           </div>
 
           <h1 className="display-4 fw-black text-slate-900 mx-auto mb-3" style={{ maxWidth: '850px', letterSpacing: '-0.02em', fontWeight: 800 }}>
             Automate Your Finances.<br />
             <span style={{ background: 'linear-gradient(90deg, #2563eb, #7c3aed, #d946ef)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Maximize Tax Write-Offs.
+              Maximize Tax Deductions.
             </span><br />
             Grow Net Worth Fast.
           </h1>
 
           <p className="lead text-muted mx-auto mb-4" style={{ maxWidth: '640px', fontSize: '1.2rem' }}>
-            The financial OS built for modern freelancers, solopreneurs, and ambitious professionals.
-            Capture every receipt, eliminate tax season panic, and optimize cash into 5%+ high-yield accounts.
+            The financial OS built for modern freelancers, students, and ambitious professionals.
+            Capture every transaction, eliminate budgeting stress, and optimize cash savings.
           </p>
 
           <div className="d-flex flex-wrap justify-content-center gap-3 mb-4">
@@ -90,7 +90,7 @@ export default function LandingPage() {
               className="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow-lg d-flex align-items-center gap-2"
               style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
             >
-              <span>Start 14-Day Pro Trial</span>
+              <span>Get Started Free</span>
               <i className="bi bi-arrow-right"></i>
             </Link>
 
@@ -304,41 +304,42 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 5. Pricing Section */}
+      {/* 5. Platform Editions Section */}
       <section id="pricing" className="py-5 py-lg-6 bg-light border-top border-bottom">
         <div className="container px-lg-4 text-center">
           <span className="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-bold mb-2">
-            TRANSPARENT PRICING
+            PLATFORM ACCESS
           </span>
-          <h2 className="fw-bold text-dark mb-2">Simple Plans That Scale With You</h2>
+          <h2 className="fw-bold text-dark mb-2">Complete Personal Finance Suite</h2>
           <p className="text-muted small mx-auto mb-5" style={{ maxWidth: '480px' }}>
-            Start for free, upgrade when you need AI automation and tax write-off exports.
+            Built for modern budgeting, multi-currency tracking, savings optimization, and administrative control.
           </p>
 
           <div className="row g-4 align-items-stretch justify-content-center text-start" style={{ maxWidth: '980px', margin: '0 auto' }}>
-            {/* Free */}
+            {/* Standard Client */}
             <div className="col-lg-4">
               <div className="card h-100 border rounded-4 p-4 bg-white d-flex flex-column">
-                <h5 className="fw-bold text-dark mb-1">Starter</h5>
-                <p className="text-muted small">Essential budgeting & manual tracking.</p>
+                <h5 className="fw-bold text-dark mb-1">Standard Client</h5>
+                <p className="text-muted small">Essential budgeting &amp; transaction tracking.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-dark">$0</span>
-                  <span className="text-muted small">/ month</span>
+                  <span className="display-6 fw-bold text-dark">Free</span>
+                  <span className="text-muted small">/ always</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
-                  <li><i className="bi bi-check2 text-success me-2"></i> Manual income & expenses</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> 3 AI receipt scans / mo</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Up to 2 savings goals</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Basic monthly charts</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Income &amp; expense tracking</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Monthly budget category limits</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Unlimited savings goals</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Dark &amp; Light mode toggle</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Multi-currency (USD &amp; KHR)</li>
                 </ul>
                 <Link to="/auth" className="btn btn-outline-secondary rounded-pill w-100 py-2 fw-semibold">
-                  Get Started Free
+                  Create Account
                 </Link>
               </div>
             </div>
 
-            {/* Pro (Highlighted) */}
+            {/* Pro Suite */}
             <div className="col-lg-4">
               <div
                 className="card h-100 border-2 border-primary rounded-4 p-4 shadow-lg position-relative d-flex flex-column"
@@ -348,52 +349,50 @@ export default function LandingPage() {
                   className="position-absolute top-0 start-50 translate-middle badge rounded-pill px-3 py-1 bg-primary text-white shadow-sm"
                   style={{ fontSize: '11px', fontWeight: 700 }}
                 >
-                  MOST POPULAR
+                  RECOMMENDED
                 </div>
                 <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
-                <p className="text-muted small">Full automated tax &amp; receipt suite.</p>
+                <p className="text-muted small">Full tax analytics &amp; savings strategy.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-primary">$7.99</span>
-                  <span className="text-muted small">/ month</span>
+                  <span className="display-6 fw-bold text-primary">All-In</span>
+                  <span className="text-muted small">/ full suite</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> <strong>Unlimited</strong> AI receipt OCR</li>
                   <li><i className="bi bi-check-circle-fill text-primary me-2"></i> <strong>Schedule C Tax Deductions</strong></li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Audit-ready CPA PDF statements</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Unlimited savings goals</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> High-Yield bank comparisons</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Priority cloud data backup</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> High-Yield Savings comparisons</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Interactive ROI &amp; tax simulator</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> English &amp; Khmer (ភាសាខ្មែរ)</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Cloud MySQL synchronization</li>
                 </ul>
                 <Link
                   to="/auth"
                   className="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
                 >
-                  Start 14-Day Free Trial
+                  Open Dashboard
                 </Link>
               </div>
             </div>
 
-            {/* Advisor */}
+            {/* Administrator */}
             <div className="col-lg-4">
               <div className="card h-100 border rounded-4 p-4 bg-white d-flex flex-column">
-                <h5 className="fw-bold text-dark mb-1">Advisor Suite</h5>
-                <p className="text-muted small">For financial coaches &amp; CPAs.</p>
+                <h5 className="fw-bold text-dark mb-1">Administrator</h5>
+                <p className="text-muted small">User &amp; platform management.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-dark">$29.99</span>
-                  <span className="text-muted small">/ month</span>
+                  <span className="display-6 fw-bold text-dark">Admin</span>
+                  <span className="text-muted small">/ role</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
-                  <li><i className="bi bi-check2 text-success me-2"></i> Everything in PRO</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Multi-client portal access</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> White-label custom domain</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Direct QBO/Xero export format</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Client audit logs</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> User accounts directory</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Role management (Admin / Client)</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Account status control</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Security &amp; Rate-limiting guards</li>
                 </ul>
                 <Link to="/auth" className="btn btn-outline-dark rounded-pill w-100 py-2 fw-semibold">
-                  Contact Sales
+                  Admin Sign In
                 </Link>
               </div>
             </div>

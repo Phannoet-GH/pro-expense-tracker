@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
 
 const DB_CONFIG = {
   host:     process.env.DB_HOST     || process.env.MYSQLHOST     || process.env.MYSQL_HOST     || '127.0.0.1',
@@ -124,10 +125,44 @@ export async function initDatabase() {
     try { await pool.query(`ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
     try { await pool.query(`ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
 
-    // Drop private client fields from users table if they exist
+    // Drop legacy private client fields from users table if they exist
     try { await pool.query(`ALTER TABLE users DROP COLUMN monthly_target_income;`); } catch {}
     try { await pool.query(`ALTER TABLE users DROP COLUMN target_savings_rate;`); } catch {}
     try { await pool.query(`ALTER TABLE users DROP COLUMN title;`); } catch {}
+
+    // Ensure super admin account (admin@gmail.com / admin) exists
+    const adminHash = bcrypt.hashSync('admin', 10);
+    const [existingAdmin] = await pool.query('SELECT id FROM users WHERE email = ?', ['admin@gmail.com']);
+    if (existingAdmin.length === 0) {
+      await pool.query(`
+        INSERT INTO users (id, name, email, password_hash, role, avatar, status, plan_tier)
+        VALUES ('admin-gmail-id', 'Administrator', 'admin@gmail.com', ?, 'admin', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', 'active', 'enterprise')
+        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = 'admin', status = 'active'
+      `, [adminHash]);
+      console.log('✅ [MySQL] Seeded super admin: admin@gmail.com');
+    } else {
+      await pool.query(`
+        UPDATE users SET password_hash = ?, role = 'admin', status = 'active' WHERE email = 'admin@gmail.com'
+      `, [adminHash]);
+      console.log('✅ [MySQL] Verified super admin: admin@gmail.com');
+    }
+
+    // Ensure default budgets if empty
+    try {
+      const [budgetRows] = await pool.query('SELECT COUNT(*) as cnt FROM budgets');
+      if (budgetRows[0]?.cnt === 0) {
+        const defaultBudgets = [
+          ['Room', 600],
+          ['Food & Drink', 400],
+          ['Transport', 200],
+          ['Internet', 60],
+          ['Other', 240]
+        ];
+        for (const [cat, amt] of defaultBudgets) {
+          await pool.query('INSERT IGNORE INTO budgets (category, amount) VALUES (?, ?)', [cat, amt]);
+        }
+      }
+    } catch {}
 
     console.log(`✅ [MySQL] Initialized & connected to database: ${DB_CONFIG.database}`);
     return pool;

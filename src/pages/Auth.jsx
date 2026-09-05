@@ -23,7 +23,7 @@ export default function Auth() {
     password: ''
   });
 
-  const redirectPath = location.state?.from?.pathname || '/';
+  const redirectPath = location.state?.from?.pathname || '/welcome';
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +34,7 @@ export default function Auth() {
       if (res.user.role === 'admin') {
         navigate('/admin');
       } else {
-        navigate(redirectPath === '/admin' ? '/' : redirectPath);
+        navigate(redirectPath === '/admin' ? '/welcome' : redirectPath);
       }
     }
   };
@@ -50,7 +50,7 @@ export default function Auth() {
 
     const res = await register(registerData);
     if (res.success) {
-      navigate('/');
+      navigate('/welcome');
     }
   };
 

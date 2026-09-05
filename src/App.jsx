@@ -75,7 +75,7 @@ export default function App() {
             </Route>
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/welcome" replace />} />
           </Routes>
         </BrowserRouter>
       </ExpenseProvider>

@@ -1,10 +1,10 @@
 /**
  * Safely parses fetch Response into JSON without throwing 'Unexpected end of JSON input'.
- * Handles empty responses (204), HTML proxy errors, and malformed bodies.
+ * Handles empty responses (204), HTML proxy/rewrite errors, and malformed bodies.
  */
 export async function parseResponse(res) {
   if (!res) {
-    return { ok: false, status: 0, data: { error: 'No response from server' } };
+    return { ok: false, status: 0, isOffline: true, data: { error: 'No response from server' } };
   }
 
   let text = '';
@@ -24,6 +24,25 @@ export async function parseResponse(res) {
     };
   }
 
+  const trimmed = text.trim();
+  const contentType = (res.headers && res.headers.get('content-type')) || '';
+  const isHtml =
+    contentType.includes('text/html') ||
+    trimmed.startsWith('<!DOCTYPE') ||
+    trimmed.startsWith('<!doctype') ||
+    trimmed.startsWith('<html') ||
+    trimmed.startsWith('<head');
+
+  if (isHtml) {
+    return {
+      ok: false,
+      status: res.status === 200 ? 404 : res.status,
+      isHtml: true,
+      isOffline: true,
+      data: { error: 'Backend API service is offline or unreachable on this host.' }
+    };
+  }
+
   try {
     const data = JSON.parse(text);
     if (!res.ok && !data.error && data.message) {
@@ -37,35 +56,78 @@ export async function parseResponse(res) {
     return {
       ok: false,
       status: res.status,
-      data: { error: text || `Server returned invalid JSON (HTTP ${res.status})` }
+      data: { error: `Server returned invalid JSON response (HTTP ${res.status})` }
     };
   }
 }
 
 /**
- * Resilient API fetch that automatically falls back to direct backend URL (http://127.0.0.1:5001)
- * if the dev proxy or static host returns 404, 405 (Method Not Allowed), or network errors.
+ * Resilient API fetch that:
+ * 1. Checks VITE_API_BASE_URL if configured.
+ * 2. Only tries http://127.0.0.1:5001 when running locally on localhost/127.0.0.1 to avoid
+ *    Mixed Content errors and request hangs in hosted environments.
+ * 3. Incorporates a fast timeout (3.5s) to fail quickly if the server is unresponsive.
  */
 export async function apiFetch(path, options = {}) {
-  const directBase = 'http://127.0.0.1:5001';
-
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return fetch(path, options);
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const envBase = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
-  // 1. Try relative path first
+  const isLocal =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '[::1]');
+
+  const fetchWithTimeout = async (url, fetchOptions, timeoutMs = 4000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const mergedOptions = {
+        ...fetchOptions,
+        signal: fetchOptions.signal || controller.signal
+      };
+      const res = await fetch(url, mergedOptions);
+      clearTimeout(timeoutId);
+      return res;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  };
+
+  // If remote backend configured (e.g. Render / Railway / Fly.io)
+  if (envBase) {
+    try {
+      return await fetchWithTimeout(`${envBase}${normalizedPath}`, options);
+    } catch (err) {
+      console.warn(`[apiFetch] Configured backend (${envBase}) failed:`, err.message);
+      throw err;
+    }
+  }
+
+  // Otherwise, try relative path first
   try {
-    const res = await fetch(normalizedPath, options);
-    // If the dev server or static host returns 404 or 405 (Method Not Allowed):
+    const res = await fetchWithTimeout(normalizedPath, options);
+
+    // If static host returns 404 or 405 Method Not Allowed (Vercel static SPA rewrites)
     if (res.status === 404 || res.status === 405) {
-      console.warn(`[apiFetch] ${normalizedPath} returned HTTP ${res.status}. Automatically retrying directly against ${directBase}...`);
-      return await fetch(`${directBase}${normalizedPath}`, options);
+      if (isLocal) {
+        console.warn(`[apiFetch] ${normalizedPath} returned HTTP ${res.status}. Retrying locally against 127.0.0.1:5001...`);
+        return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options);
+      }
+      return res;
     }
     return res;
   } catch (err) {
-    console.warn(`[apiFetch] Direct fetch error on ${normalizedPath}: ${err.message}. Retrying against backend ${directBase}...`);
-    return await fetch(`${directBase}${normalizedPath}`, options);
+    if (isLocal) {
+      console.warn(`[apiFetch] Local relative fetch error: ${err.message}. Retrying against 127.0.0.1:5001...`);
+      return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options);
+    }
+    throw err;
   }
 }

@@ -108,7 +108,7 @@ export const SAMPLE_RECEIPTS = [
 ];
 
 export const ExpenseProvider = ({ children }) => {
-  const { token } = useContext(UserContext) || {};
+  const { token, currentUser } = useContext(UserContext) || {};
 
   const [expenses, setExpenses] = useState([]);
   const [incomes, setIncomes] = useState([]);
@@ -119,11 +119,38 @@ export const ExpenseProvider = ({ children }) => {
   const [dbInfo, setDbInfo] = useState({ dbName: 'pro_expense_tracker', host: '127.0.0.1:3306' });
   const [isLoading, setIsLoading] = useState(false);
 
+  const userStorageKey = currentUser?.id || 'guest';
+
   // Load currency preference
   useEffect(() => {
     const savedCurrency = localStorage.getItem('app_currency');
     if (savedCurrency) setCurrency(savedCurrency);
   }, []);
+
+  // Persist state to localStorage when offline
+  useEffect(() => {
+    if (userStorageKey && dbStatus === 'offline' && expenses.length > 0) {
+      localStorage.setItem(`smartfinance_expenses_${userStorageKey}`, JSON.stringify(expenses));
+    }
+  }, [expenses, userStorageKey, dbStatus]);
+
+  useEffect(() => {
+    if (userStorageKey && dbStatus === 'offline' && incomes.length > 0) {
+      localStorage.setItem(`smartfinance_incomes_${userStorageKey}`, JSON.stringify(incomes));
+    }
+  }, [incomes, userStorageKey, dbStatus]);
+
+  useEffect(() => {
+    if (userStorageKey && dbStatus === 'offline' && savingsGoals.length > 0) {
+      localStorage.setItem(`smartfinance_goals_${userStorageKey}`, JSON.stringify(savingsGoals));
+    }
+  }, [savingsGoals, userStorageKey, dbStatus]);
+
+  useEffect(() => {
+    if (userStorageKey && dbStatus === 'offline' && budgets) {
+      localStorage.setItem(`smartfinance_budgets_${userStorageKey}`, JSON.stringify(budgets));
+    }
+  }, [budgets, userStorageKey, dbStatus]);
 
   const changeCurrency = (newCurr) => {
     setCurrency(newCurr);
@@ -143,7 +170,7 @@ export const ExpenseProvider = ({ children }) => {
     };
   }, [token]);
 
-  // Fetch data from MySQL for current authenticated user
+  // Fetch data from MySQL for current authenticated user or load from localStorage
   const refreshFromDb = useCallback(async () => {
     if (!token) {
       setExpenses([]);
@@ -153,49 +180,152 @@ export const ExpenseProvider = ({ children }) => {
     }
 
     setIsLoading(true);
+    let isBackendAlive = false;
+
     try {
       // 1. Health check
       const healthRes = await apiFetch('/api/health');
-      const { ok: healthOk, data: healthData } = await parseResponse(healthRes);
-      if (healthOk && healthData) {
-        setDbStatus(healthData.database === 'connected' ? 'connected' : 'connecting');
+      const { ok: healthOk, data: healthData, isOffline, isHtml } = await parseResponse(healthRes);
+      if (healthOk && healthData && !isOffline && !isHtml && healthData.database === 'connected') {
+        isBackendAlive = true;
+        setDbStatus('connected');
         if (healthData.dbName) setDbInfo(prev => ({ ...prev, dbName: healthData.dbName }));
+      } else {
+        setDbStatus('offline');
       }
-
-      // 2. Fetch authenticated user's private expenses
-      const expRes = await apiFetch('/api/expenses', { headers: getAuthHeaders() });
-      const { ok: expOk, data: expData } = await parseResponse(expRes);
-      if (expOk && Array.isArray(expData)) {
-        setExpenses(expData);
-      }
-
-      // 3. Fetch authenticated user's private incomes
-      const incRes = await apiFetch('/api/incomes', { headers: getAuthHeaders() });
-      const { ok: incOk, data: incData } = await parseResponse(incRes);
-      if (incOk && Array.isArray(incData)) {
-        setIncomes(incData);
-      }
-
-      // 4. Fetch authenticated user's private savings goals
-      const goalRes = await apiFetch('/api/savings-goals', { headers: getAuthHeaders() });
-      const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
-      if (goalOk && Array.isArray(goalData)) {
-        setSavingsGoals(goalData);
-      }
-
-      // 5. Fetch default budgets
-      const budRes = await apiFetch('/api/budgets');
-      const { ok: budOk, data: budData } = await parseResponse(budRes);
-      if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
-        setBudgets(prev => ({ ...prev, ...budData }));
-      }
-    } catch (error) {
-      console.warn('[ExpenseContext] API error, checking connection:', error.message);
+    } catch {
       setDbStatus('offline');
-    } finally {
-      setIsLoading(false);
     }
-  }, [token, getAuthHeaders]);
+
+    if (isBackendAlive) {
+      try {
+        // 2. Fetch authenticated user's private expenses
+        const expRes = await apiFetch('/api/expenses', { headers: getAuthHeaders() });
+        const { ok: expOk, data: expData } = await parseResponse(expRes);
+        if (expOk && Array.isArray(expData)) setExpenses(expData);
+
+        // 3. Fetch authenticated user's private incomes
+        const incRes = await apiFetch('/api/incomes', { headers: getAuthHeaders() });
+        const { ok: incOk, data: incData } = await parseResponse(incRes);
+        if (incOk && Array.isArray(incData)) setIncomes(incData);
+
+        // 4. Fetch authenticated user's private savings goals
+        const goalRes = await apiFetch('/api/savings-goals', { headers: getAuthHeaders() });
+        const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
+        if (goalOk && Array.isArray(goalData)) setSavingsGoals(goalData);
+
+        // 5. Fetch default budgets
+        const budRes = await apiFetch('/api/budgets');
+        const { ok: budOk, data: budData } = await parseResponse(budRes);
+        if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
+          setBudgets(prev => ({ ...prev, ...budData }));
+        }
+      } catch (error) {
+        console.warn('[ExpenseContext] Online sync error:', error.message);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Backend is offline: load from LocalStorage
+    const userId = currentUser?.id || 'guest';
+    const localExpenses = localStorage.getItem(`smartfinance_expenses_${userId}`);
+    const localIncomes = localStorage.getItem(`smartfinance_incomes_${userId}`);
+    const localGoals = localStorage.getItem(`smartfinance_goals_${userId}`);
+    const localBudgets = localStorage.getItem(`smartfinance_budgets_${userId}`);
+
+    if (localExpenses) {
+      try { setExpenses(JSON.parse(localExpenses)); } catch {}
+    } else {
+      const initialDemoExpenses = [
+        {
+          id: 'exp-1',
+          title: 'Starbucks Nitro Cold Brew & Snacks',
+          amount: 14.50,
+          category: 'Food & Drink',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Nitro Cold Brew & Almond Croissant',
+          is_tax_deductible: false,
+          tax_category: 'Personal'
+        },
+        {
+          id: 'exp-2',
+          title: 'High-speed Fiber Internet',
+          amount: 60.00,
+          category: 'Internet',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Monthly fiber broadband',
+          is_tax_deductible: true,
+          tax_category: 'Work Utility'
+        },
+        {
+          id: 'exp-3',
+          title: 'Studio Apartment Rental',
+          amount: 550.00,
+          category: 'Room',
+          date: new Date().toISOString().split('T')[0],
+          description: 'Monthly housing allowance',
+          is_tax_deductible: false,
+          tax_category: 'Housing'
+        }
+      ];
+      setExpenses(initialDemoExpenses);
+      localStorage.setItem(`smartfinance_expenses_${userId}`, JSON.stringify(initialDemoExpenses));
+    }
+
+    if (localIncomes) {
+      try { setIncomes(JSON.parse(localIncomes)); } catch {}
+    } else {
+      const initialDemoIncomes = [
+        {
+          id: 'inc-1',
+          source: 'Primary Employment Salary',
+          amount: 3200.00,
+          date: new Date().toISOString().split('T')[0],
+          is_recurring: true,
+          notes: 'Bi-weekly direct payroll deposit'
+        }
+      ];
+      setIncomes(initialDemoIncomes);
+      localStorage.setItem(`smartfinance_incomes_${userId}`, JSON.stringify(initialDemoIncomes));
+    }
+
+    if (localGoals) {
+      try { setSavingsGoals(JSON.parse(localGoals)); } catch {}
+    } else {
+      const initialDemoGoals = [
+        {
+          id: 'goal-1',
+          title: 'Emergency Rainy Day Fund',
+          target_amount: 5000.00,
+          current_amount: 2200.00,
+          target_date: '2026-12-31',
+          category: 'Emergency Fund',
+          priority: 'high',
+          color: '#10b981'
+        },
+        {
+          id: 'goal-2',
+          title: 'Vacation & Travel',
+          target_amount: 1500.00,
+          current_amount: 650.00,
+          target_date: '2026-11-20',
+          category: 'Travel & Vacation',
+          priority: 'medium',
+          color: '#3b82f6'
+        }
+      ];
+      setSavingsGoals(initialDemoGoals);
+      localStorage.setItem(`smartfinance_goals_${userId}`, JSON.stringify(initialDemoGoals));
+    }
+
+    if (localBudgets) {
+      try { setBudgets(JSON.parse(localBudgets)); } catch {}
+    }
+
+    setIsLoading(false);
+  }, [token, currentUser?.id, getAuthHeaders]);
 
   useEffect(() => {
     refreshFromDb();
@@ -490,6 +620,11 @@ export const ExpenseProvider = ({ children }) => {
   }, [savingsGoals]);
 
   const resetAllData = async () => {
+    if (userStorageKey) {
+      localStorage.removeItem(`smartfinance_expenses_${userStorageKey}`);
+      localStorage.removeItem(`smartfinance_incomes_${userStorageKey}`);
+      localStorage.removeItem(`smartfinance_goals_${userStorageKey}`);
+    }
     await clearAllExpenses();
     await clearAllIncomes();
     await clearAllSavingsGoals();

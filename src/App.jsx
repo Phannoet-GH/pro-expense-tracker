@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
 import { BillingProvider } from './context/BillingContext';
 import { ExpenseProvider } from './context/ExpenseContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Auth from './pages/Auth';
 import LandingPage from './pages/LandingPage';
@@ -30,57 +32,61 @@ import './index.css';
 
 export default function App() {
   return (
-    <UserProvider>
-      <BillingProvider>
-        <ExpenseProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public Marketing & Landing Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/welcome" element={<LandingPage />} />
-              <Route path="/pricing" element={<LandingPage />} />
+    <ThemeProvider>
+      <LanguageProvider>
+        <UserProvider>
+          <BillingProvider>
+            <ExpenseProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Marketing & Landing Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/welcome" element={<LandingPage />} />
+                  <Route path="/pricing" element={<LandingPage />} />
 
-              {/* Public Authentication Route */}
-              <Route path="/auth" element={<Auth />} />
+                  {/* Public Authentication Route */}
+                  <Route path="/auth" element={<Auth />} />
 
-              {/* Authenticated Client-Side Portal Routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Dashboard />} />
-                <Route path="transactions" element={<Transactions />} />
-                <Route path="savings" element={<SavingsHub />} />
-                <Route path="tax-reports" element={<TaxReports />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
+                  {/* Authenticated Client-Side Portal Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="transactions" element={<Transactions />} />
+                    <Route path="savings" element={<SavingsHub />} />
+                    <Route path="tax-reports" element={<TaxReports />} />
+                    <Route path="analytics" element={<Analytics />} />
+                    <Route path="settings" element={<Settings />} />
+                  </Route>
 
-            {/* Admin-Side Portal Routes (Admin Role Guarded) */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="categories" element={<AdminCategories />} />
-              <Route path="system" element={<AdminSystem />} />
-            </Route>
+                  {/* Admin-Side Portal Routes (Admin Role Guarded) */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <AdminLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="users" element={<AdminUsers />} />
+                    <Route path="categories" element={<AdminCategories />} />
+                    <Route path="system" element={<AdminSystem />} />
+                  </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </ExpenseProvider>
-    </BillingProvider>
-  </UserProvider>
-);
+                  {/* Fallback */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </ExpenseProvider>
+          </BillingProvider>
+        </UserProvider>
+      </LanguageProvider>
+    </ThemeProvider>
+  );
 }

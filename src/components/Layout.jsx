@@ -3,12 +3,16 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { UserContext } from '../context/UserContext';
 import { useBilling } from '../context/BillingContext';
+import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import PricingModal from './PricingModal';
 
 export default function Layout() {
   const { netSavings, formatAmount } = useContext(ExpenseContext);
   const { currentUser, logout } = useContext(UserContext);
   const { tier, isPro, openPricingModal } = useBilling();
+  const { theme, toggleTheme, isDark } = useTheme();
+  const { lang, toggleLang, t } = useLanguage();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -35,7 +39,7 @@ export default function Layout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
+            <span>{t('dashboard')}</span>
           </NavLink>
 
           <NavLink
@@ -43,7 +47,7 @@ export default function Layout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-arrow-left-right"></i>
-            <span>Income &amp; Expense</span>
+            <span>{t('transactions')}</span>
           </NavLink>
 
           <NavLink
@@ -52,7 +56,7 @@ export default function Layout() {
           >
             <div className="d-flex align-items-center gap-2">
               <i className="bi bi-piggy-bank text-warning"></i>
-              <span>How to Save</span>
+              <span>{t('savings')}</span>
             </div>
             <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '10px' }}>50/30/20</span>
           </NavLink>
@@ -63,7 +67,7 @@ export default function Layout() {
           >
             <div className="d-flex align-items-center gap-2">
               <i className="bi bi-receipt-cutoff text-info"></i>
-              <span>Tax Write-Offs</span>
+              <span>{t('taxReports')}</span>
             </div>
             <span className="badge bg-primary text-white rounded-pill" style={{ fontSize: '10px' }}>PRO</span>
           </NavLink>
@@ -73,7 +77,7 @@ export default function Layout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-pie-chart"></i>
-            <span>Analytics</span>
+            <span>{t('analytics')}</span>
           </NavLink>
 
           <NavLink
@@ -81,7 +85,7 @@ export default function Layout() {
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-gear"></i>
-            <span>Settings</span>
+            <span>{t('settings')}</span>
           </NavLink>
         </div>
 
@@ -97,24 +101,24 @@ export default function Layout() {
             >
               <div className="d-flex align-items-center justify-content-center gap-1 text-warning small fw-bold mb-1">
                 <i className="bi bi-stars"></i>
-                <span>UPGRADE TO PRO</span>
+                <span>{t('upgradeToPro')}</span>
               </div>
               <div className="text-white small fw-semibold mb-1" style={{ fontSize: '12px' }}>
-                Unlimited Scans &amp; Tax Suite
+                {t('unlimitedScans')}
               </div>
               <button
                 onClick={() => openPricingModal('Sidebar Banner')}
                 className="btn btn-warning text-dark btn-sm rounded-pill fw-bold w-100 py-1 shadow-sm mt-1"
                 style={{ fontSize: '11px' }}
               >
-                Get PRO ($7.99/mo)
+                {t('getPro')}
               </button>
             </div>
           ) : (
             <div className="px-3 py-2 rounded-3 bg-primary bg-opacity-25 border border-primary border-opacity-50 text-center">
               <div className="d-flex align-items-center justify-content-center gap-1 text-primary fw-bold small">
                 <i className="bi bi-patch-check-fill"></i>
-                <span>{tier === 'enterprise' ? 'ADVISOR PLAN' : 'PRO SUITE ACTIVE'}</span>
+                <span>{tier === 'enterprise' ? t('advisorPlan') : t('proSuiteActive')}</span>
               </div>
             </div>
           )}
@@ -122,7 +126,7 @@ export default function Layout() {
 
         {/* Sidebar Footer: Active Client Profile & Logout */}
         <div className="mt-auto p-3 border-top border-secondary border-opacity-25">
-          <div className="p-3 bg-secondary bg-opacity-25 rounded-3 mb-3 border border-secondary border-opacity-25">
+          <div className="p-3 bg-secondary bg-opacity-25 rounded-3 mb-2 border border-secondary border-opacity-25">
             <div className="d-flex align-items-center gap-2">
               <img
                 src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'User')}&background=0D8ABC&color=fff`}
@@ -138,7 +142,27 @@ export default function Layout() {
             </div>
             <div className="d-flex justify-content-between text-secondary mt-2 pt-2 border-top border-secondary border-opacity-25" style={{ fontSize: '10px' }}>
               <span>Account:</span>
-              <span className="text-success fw-bold">Active Member</span>
+              <span className="text-success fw-bold">{t('activeMember')}</span>
+            </div>
+          </div>
+
+          {/* Theme & Language Toggles */}
+          <div className="d-flex align-items-center justify-content-between mb-2 px-1">
+            <div className="d-flex align-items-center gap-2">
+              <i className={`bi ${isDark ? 'bi-moon-stars-fill text-warning' : 'bi-sun-fill text-warning'}`} style={{ fontSize: '13px' }}></i>
+              <span className="text-secondary" style={{ fontSize: '11px' }}>{isDark ? 'Dark' : 'Light'}</span>
+            </div>
+            <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle dark/light mode" />
+          </div>
+
+          <div className="d-flex align-items-center justify-content-between mb-3 px-1">
+            <div className="d-flex align-items-center gap-2">
+              <i className="bi bi-translate text-info" style={{ fontSize: '13px' }}></i>
+              <span className="text-secondary" style={{ fontSize: '11px' }}>Language</span>
+            </div>
+            <div className="lang-pill">
+              <button className={lang === 'EN' ? 'active' : ''} onClick={() => lang !== 'EN' && toggleLang()}>EN</button>
+              <button className={lang === 'KH' ? 'active' : ''} onClick={() => lang !== 'KH' && toggleLang()}>KH</button>
             </div>
           </div>
 
@@ -149,7 +173,7 @@ export default function Layout() {
                 className="btn btn-sm btn-outline-danger w-100 rounded-pill py-2 small fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
               >
                 <i className="bi bi-shield-lock-fill"></i>
-                <span>Open Admin Console</span>
+                <span>{t('adminConsole')}</span>
               </button>
             )}
 
@@ -158,7 +182,7 @@ export default function Layout() {
               className="btn btn-sm btn-outline-light w-100 rounded-pill py-2 small fw-semibold d-flex align-items-center justify-content-center gap-2 shadow-sm"
             >
               <i className="bi bi-box-arrow-right"></i>
-              <span>Sign Out</span>
+              <span>{t('signOut')}</span>
             </button>
           </div>
         </div>
@@ -168,7 +192,7 @@ export default function Layout() {
         {/* Topbar */}
         <nav className="navbar navbar-expand-lg navbar-light bg-white py-3 px-4 shadow-sm border-bottom">
           <div className="d-flex align-items-center flex-wrap gap-3">
-            <h2 className="fs-5 m-0 fw-bold text-dark">Personal Wealth Manager</h2>
+            <h2 className="fs-5 m-0 fw-bold" style={{ color: 'var(--text-primary)' }}>{t('personalWealthManager')}</h2>
             <span className={`badge rounded-pill ${netSavings >= 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'} px-3 py-1 fw-bold`} style={{ fontSize: '0.8rem' }}>
               Net Cash Flow: {formatAmount(netSavings)}
             </span>

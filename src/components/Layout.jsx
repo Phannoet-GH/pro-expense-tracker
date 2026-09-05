@@ -137,8 +137,8 @@ export default function Layout() {
               </div>
             </div>
             <div className="d-flex justify-content-between text-secondary mt-2 pt-2 border-top border-secondary border-opacity-25" style={{ fontSize: '10px' }}>
-              <span>Target Save:</span>
-              <span className="text-white fw-bold">{currentUser?.target_savings_rate || 25}%</span>
+              <span>Account:</span>
+              <span className="text-success fw-bold">Active Member</span>
             </div>
           </div>
 

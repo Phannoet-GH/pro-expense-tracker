@@ -39,13 +39,10 @@ export async function initDatabase() {
         email VARCHAR(255) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         role ENUM('admin', 'client') DEFAULT 'client',
-        title VARCHAR(255) NULL,
         avatar VARCHAR(500) NULL,
         status VARCHAR(50) DEFAULT 'active',
         auth_token VARCHAR(255) NULL,
         last_login TIMESTAMP NULL,
-        monthly_target_income DECIMAL(10, 2) DEFAULT 0,
-        target_savings_rate DECIMAL(5, 2) DEFAULT 20,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -126,6 +123,11 @@ export async function initDatabase() {
     try { await pool.query(`ALTER TABLE expenses ADD COLUMN tax_category VARCHAR(100) DEFAULT 'General Business';`); } catch {}
     try { await pool.query(`ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
     try { await pool.query(`ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
+
+    // Drop private client fields from users table if they exist
+    try { await pool.query(`ALTER TABLE users DROP COLUMN monthly_target_income;`); } catch {}
+    try { await pool.query(`ALTER TABLE users DROP COLUMN target_savings_rate;`); } catch {}
+    try { await pool.query(`ALTER TABLE users DROP COLUMN title;`); } catch {}
 
     console.log(`✅ [MySQL] Initialized & connected to database: ${DB_CONFIG.database}`);
     return pool;

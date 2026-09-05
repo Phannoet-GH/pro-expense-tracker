@@ -35,24 +35,20 @@ async function seed() {
       email: 'admin@smartfinance.pro',
       password: 'AdminPass@2026',
       role: 'admin',
-      title: 'Lead System Administrator',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       status: 'active',
-      plan_tier: 'enterprise',
-      monthly_target_income: 8000,
-      target_savings_rate: 35
+      plan_tier: 'enterprise'
     }
   ];
 
   for (const u of users) {
     const password_hash = bcrypt.hashSync(u.password, 10);
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash, role, title, avatar, status, plan_tier, monthly_target_income, target_savings_rate)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO users (id, name, email, password_hash, role, avatar, status, plan_tier)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), password_hash=VALUES(password_hash), role=VALUES(role),
-       title=VALUES(title), avatar=VALUES(avatar), status=VALUES(status), plan_tier=VALUES(plan_tier),
-       monthly_target_income=VALUES(monthly_target_income), target_savings_rate=VALUES(target_savings_rate)`,
-      [u.id, u.name, u.email, password_hash, u.role, u.title, u.avatar, u.status, u.plan_tier, u.monthly_target_income, u.target_savings_rate]
+       avatar=VALUES(avatar), status=VALUES(status), plan_tier=VALUES(plan_tier)`,
+      [u.id, u.name, u.email, password_hash, u.role, u.avatar, u.status, u.plan_tier]
     );
   }
   console.log(`✅ Seeded Super Administrator user: ${users[0].email}`);

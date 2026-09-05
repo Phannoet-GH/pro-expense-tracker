@@ -42,7 +42,7 @@ export const authMiddleware = async (req, res, next) => {
 
     const pool = getPool();
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, title, avatar, status, monthly_target_income, target_savings_rate,
+      `SELECT id, name, email, role, avatar, status,
               plan_tier, subscription_status, current_period_end, monthly_ai_scans_used
        FROM users WHERE auth_token = ?`,
       [token]
@@ -61,9 +61,7 @@ export const authMiddleware = async (req, res, next) => {
       ...user,
       plan_tier: user.plan_tier || 'free',
       subscription_status: user.subscription_status || 'active',
-      monthly_ai_scans_used: parseInt(user.monthly_ai_scans_used || 0, 10),
-      monthly_target_income: parseFloat(user.monthly_target_income || 0),
-      target_savings_rate: parseFloat(user.target_savings_rate || 20)
+      monthly_ai_scans_used: parseInt(user.monthly_ai_scans_used || 0, 10)
     };
     next();
   } catch (error) {
@@ -136,7 +134,7 @@ app.get('/api/health', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const pool = getPool();
-    const { name, email, password, title, monthly_target_income, target_savings_rate } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -159,25 +157,16 @@ app.post('/api/auth/register', async (req, res) => {
     const token = generateToken();
     const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.trim())}&background=0D8ABC&color=fff`;
 
-    const parsedIncome = parseFloat(monthly_target_income);
-    const cleanIncome = (!isNaN(parsedIncome) && parsedIncome >= 0) ? parsedIncome : 4000;
-
-    const parsedRate = parseFloat(target_savings_rate);
-    const cleanRate = (!isNaN(parsedRate) && parsedRate >= 0 && parsedRate <= 100) ? parsedRate : 20;
-
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash, role, title, avatar, status, auth_token, last_login, monthly_target_income, target_savings_rate)
-       VALUES (?, ?, ?, ?, 'client', ?, ?, 'active', ?, NOW(), ?, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, avatar, status, auth_token, last_login)
+       VALUES (?, ?, ?, ?, 'client', ?, 'active', ?, NOW())`,
       [
         userId,
         name.trim(),
         cleanEmail,
         passwordHash,
-        title ? title.trim() : 'Personal Client',
         avatar,
-        token,
-        cleanIncome,
-        cleanRate
+        token
       ]
     );
 
@@ -191,14 +180,11 @@ app.post('/api/auth/register', async (req, res) => {
         name: name.trim(),
         email: cleanEmail,
         role: 'client',
-        title: title ? title.trim() : 'Personal Client',
         avatar,
         status: 'active',
         plan_tier: 'free',
         subscription_status: 'active',
-        monthly_ai_scans_used: 0,
-        monthly_target_income: cleanIncome,
-        target_savings_rate: cleanRate
+        monthly_ai_scans_used: 0
       }
     });
   } catch (error) {
@@ -286,14 +272,11 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        title: user.title,
         avatar: user.avatar,
         status: user.status,
         plan_tier: user.plan_tier || 'free',
         subscription_status: user.subscription_status || 'active',
-        monthly_ai_scans_used: parseInt(user.monthly_ai_scans_used || 0, 10),
-        monthly_target_income: parseFloat(user.monthly_target_income || 0),
-        target_savings_rate: parseFloat(user.target_savings_rate || 20)
+        monthly_ai_scans_used: parseInt(user.monthly_ai_scans_used || 0, 10)
       }
     });
   } catch (error) {
@@ -1087,7 +1070,7 @@ app.get('/api/admin/users', authMiddleware, adminOnly, async (req, res) => {
   try {
     const pool = getPool();
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, title, avatar, status, created_at, last_login
+      `SELECT id, name, email, role, avatar, status, created_at, last_login
        FROM users ORDER BY created_at DESC`
     );
     res.json(rows);

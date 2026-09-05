@@ -20,10 +20,7 @@ export default function Auth() {
   const [registerData, setRegisterData] = useState({
     name: '',
     email: '',
-    password: '',
-    title: '',
-    monthly_target_income: '4500',
-    target_savings_rate: '25'
+    password: ''
   });
 
   const redirectPath = location.state?.from?.pathname || '/';
@@ -217,42 +214,6 @@ export default function Auth() {
                   value={registerData.email}
                   onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                 />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label small fw-semibold text-dark">Profession / Title (Optional)</label>
-                <input
-                  type="text"
-                  className="form-control bg-light"
-                  placeholder="e.g. Product Manager"
-                  value={registerData.title}
-                  onChange={(e) => setRegisterData(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-
-              <div className="row g-2 mb-3">
-                <div className="col-6">
-                  <label className="form-label small fw-semibold text-dark">Target Income ($/mo)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    className="form-control bg-light"
-                    value={registerData.monthly_target_income}
-                    onChange={(e) => setRegisterData(prev => ({ ...prev, monthly_target_income: e.target.value }))}
-                  />
-                </div>
-                <div className="col-6">
-                  <label className="form-label small fw-semibold text-dark">Target Save Rate (%)</label>
-                  <input
-                    type="number"
-                    min="5"
-                    max="80"
-                    className="form-control bg-light"
-                    value={registerData.target_savings_rate}
-                    onChange={(e) => setRegisterData(prev => ({ ...prev, target_savings_rate: e.target.value }))}
-                  />
-                </div>
               </div>
 
               <div className="mb-4">

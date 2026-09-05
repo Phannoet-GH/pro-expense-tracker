@@ -74,8 +74,7 @@ export default function AdminUsers() {
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (u.title && u.title.toLowerCase().includes(searchTerm.toLowerCase()));
+                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -188,9 +187,6 @@ export default function AdminUsers() {
                         <div>
                           <div className="fw-bold text-dark">{user.name}</div>
                           <div className="text-muted small" style={{ fontSize: '11px' }}>{user.email}</div>
-                          <span className="badge bg-light text-secondary border mt-1" style={{ fontSize: '10px' }}>
-                            {user.title || 'Client'}
-                          </span>
                         </div>
                       </div>
                     </td>

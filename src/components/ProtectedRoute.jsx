@@ -35,7 +35,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
             <i className="bi bi-shield-lock-fill text-success me-2"></i>
             <strong>Zero-Knowledge Privacy:</strong> Administrators do not have access to view or alter your private personal financial accounts.
           </div>
-          <Link to="/" className="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+          <Link to="/dashboard" className="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
             <i className="bi bi-arrow-left me-1"></i> Return to Personal Dashboard
           </Link>
         </div>

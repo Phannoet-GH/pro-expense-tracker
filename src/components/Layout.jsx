@@ -13,7 +13,7 @@ export default function Layout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/auth');
+    navigate('/');
   };
 
   return (
@@ -30,7 +30,7 @@ export default function Layout() {
 
         <div className="list-group list-group-flush my-3 px-2 gap-1">
           <NavLink
-            to="/"
+            to="/dashboard"
             end
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
@@ -39,7 +39,7 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/transactions"
+            to="/dashboard/transactions"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-arrow-left-right"></i>
@@ -47,7 +47,7 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/savings"
+            to="/dashboard/savings"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex justify-content-between align-items-center ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <div className="d-flex align-items-center gap-2">
@@ -58,7 +58,7 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/tax-reports"
+            to="/dashboard/tax-reports"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex justify-content-between align-items-center ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <div className="d-flex align-items-center gap-2">
@@ -69,7 +69,7 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/analytics"
+            to="/dashboard/analytics"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-pie-chart"></i>
@@ -77,7 +77,7 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/settings"
+            to="/dashboard/settings"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
             <i className="bi bi-gear"></i>

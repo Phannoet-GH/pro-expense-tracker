@@ -36,6 +36,7 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               {/* Public Marketing & Landing Routes */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/welcome" element={<LandingPage />} />
               <Route path="/pricing" element={<LandingPage />} />
 
@@ -44,7 +45,7 @@ export default function App() {
 
               {/* Authenticated Client-Side Portal Routes */}
               <Route
-                path="/"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Layout />
@@ -75,7 +76,7 @@ export default function App() {
             </Route>
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/welcome" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </ExpenseProvider>

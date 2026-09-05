@@ -114,7 +114,16 @@ export async function initDatabase() {
     try { await pool.query(`ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT '';`); } catch {}
     try { await pool.query(`ALTER TABLE users ADD COLUMN auth_token VARCHAR(255) NULL;`); } catch {}
     try { await pool.query(`ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN plan_tier ENUM('free', 'pro', 'enterprise') DEFAULT 'free';`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN subscription_status VARCHAR(50) DEFAULT 'active';`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(255) NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN stripe_subscription_id VARCHAR(255) NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN current_period_end TIMESTAMP NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN monthly_ai_scans_used INT DEFAULT 0;`); } catch {}
+    try { await pool.query(`ALTER TABLE users ADD COLUMN last_scan_reset DATE NULL;`); } catch {}
     try { await pool.query(`ALTER TABLE expenses ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
+    try { await pool.query(`ALTER TABLE expenses ADD COLUMN is_tax_deductible BOOLEAN DEFAULT 0;`); } catch {}
+    try { await pool.query(`ALTER TABLE expenses ADD COLUMN tax_category VARCHAR(100) DEFAULT 'General Business';`); } catch {}
     try { await pool.query(`ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
     try { await pool.query(`ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
 

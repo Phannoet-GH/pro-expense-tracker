@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 
 export default function Auth() {
-  const { login, register, authError, setAuthError, isLoading, demoCredentials } = useContext(UserContext);
+  const { login, register, authError, setAuthError, isLoading } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -54,18 +54,6 @@ export default function Auth() {
     const res = await register(registerData);
     if (res.success) {
       navigate('/');
-    }
-  };
-
-  const handleQuickLogin = async (demoUser) => {
-    setLoginData({ email: demoUser.email, password: demoUser.password });
-    const res = await login(demoUser.email, demoUser.password);
-    if (res.success) {
-      if (res.user.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
     }
   };
 
@@ -198,41 +186,6 @@ export default function Auth() {
                   </>
                 )}
               </button>
-
-              {/* 1-Click Fast Login for Testing */}
-              <div className="mt-4 pt-3 border-top">
-                <div className="text-muted small fw-semibold mb-2 text-center" style={{ fontSize: '11px' }}>
-                  <i className="bi bi-lightning-charge-fill text-warning me-1"></i>
-                  1-Click Quick Demo Sign In:
-                </div>
-
-                <div className="d-flex flex-column gap-2">
-                  {demoCredentials.map((demo) => (
-                    <button
-                      key={demo.email}
-                      type="button"
-                      onClick={() => handleQuickLogin(demo)}
-                      className="btn btn-sm btn-outline-secondary rounded-3 text-start d-flex align-items-center justify-content-between px-3 py-2"
-                    >
-                      <div className="d-flex align-items-center gap-2">
-                        <span className={`badge rounded-pill ${demo.role === 'admin' ? 'bg-danger' : 'bg-primary'}`} style={{ fontSize: '10px' }}>
-                          {demo.role.toUpperCase()}
-                        </span>
-                        <div>
-                          <strong className="text-dark small d-block">{demo.name}</strong>
-                          <span className="text-muted d-block" style={{ fontSize: '11px' }}>{demo.email}</span>
-                          <span className="text-primary fw-semibold" style={{ fontSize: '11px' }}>
-                            <i className="bi bi-key-fill me-1"></i>Password: <code>{demo.easyPassword || demo.password}</code>
-                          </span>
-                        </div>
-                      </div>
-                      <span className="btn btn-sm btn-primary py-0 px-2 rounded-pill" style={{ fontSize: '11px' }}>
-                        Login &rarr;
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </form>
           ) : (
             /* ================= REGISTER FORM ================= */

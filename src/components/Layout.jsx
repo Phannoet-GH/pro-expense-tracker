@@ -2,10 +2,13 @@ import React, { useContext } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { UserContext } from '../context/UserContext';
+import { useBilling } from '../context/BillingContext';
+import PricingModal from './PricingModal';
 
 export default function Layout() {
   const { dbStatus, dbInfo, refreshFromDb, netSavings, formatAmount } = useContext(ExpenseContext);
   const { currentUser, logout } = useContext(UserContext);
+  const { tier, isPro, openPricingModal } = useBilling();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -55,6 +58,17 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
+            to="/tax-reports"
+            className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex justify-content-between align-items-center ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <i className="bi bi-receipt-cutoff text-info"></i>
+              <span>Tax Write-Offs</span>
+            </div>
+            <span className="badge bg-primary text-white rounded-pill" style={{ fontSize: '10px' }}>PRO</span>
+          </NavLink>
+
+          <NavLink
             to="/analytics"
             className={({ isActive }) => `list-group-item list-group-item-action bg-transparent rounded-3 text-white fw-medium py-2 px-3 d-flex align-items-center gap-2 ${isActive ? 'bg-primary text-white shadow-sm' : ''}`}
           >
@@ -69,6 +83,41 @@ export default function Layout() {
             <i className="bi bi-gear"></i>
             <span>Settings</span>
           </NavLink>
+        </div>
+
+        {/* Subscription Upgrade Box in Sidebar */}
+        <div className="px-3 mb-2">
+          {!isPro ? (
+            <div
+              className="p-3 rounded-4 text-center shadow-sm position-relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-center gap-1 text-warning small fw-bold mb-1">
+                <i className="bi bi-stars"></i>
+                <span>UPGRADE TO PRO</span>
+              </div>
+              <div className="text-white small fw-semibold mb-1" style={{ fontSize: '12px' }}>
+                Unlimited Scans &amp; Tax Suite
+              </div>
+              <button
+                onClick={() => openPricingModal('Sidebar Banner')}
+                className="btn btn-warning text-dark btn-sm rounded-pill fw-bold w-100 py-1 shadow-sm mt-1"
+                style={{ fontSize: '11px' }}
+              >
+                Get PRO ($7.99/mo)
+              </button>
+            </div>
+          ) : (
+            <div className="px-3 py-2 rounded-3 bg-primary bg-opacity-25 border border-primary border-opacity-50 text-center">
+              <div className="d-flex align-items-center justify-content-center gap-1 text-primary fw-bold small">
+                <i className="bi bi-patch-check-fill"></i>
+                <span>{tier === 'enterprise' ? 'ADVISOR PLAN' : 'PRO SUITE ACTIVE'}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Footer: Active Client Profile & Logout */}
@@ -175,6 +224,9 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+
+      {/* Global Subscription Pricing & Upgrade Modal */}
+      <PricingModal />
     </div>
   );
 }

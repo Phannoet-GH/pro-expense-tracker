@@ -115,7 +115,7 @@ export default function AdminDashboard() {
               {stats?.system?.uptimeSeconds ? `${Math.round(stats.system.uptimeSeconds / 60)} min` : '< 1 min'}
             </h3>
             <div className="text-muted small" style={{ fontSize: '12px' }}>
-              Node {stats?.system?.nodeVersion || process.version} runtime
+              Node {stats?.system?.nodeVersion || 'v22.x'} runtime
             </div>
           </div>
         </div>

@@ -799,18 +799,86 @@ export default function SavingsHub() {
 
           <div className="col-lg-4">
             <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
-              <h5 className="fw-bold mb-3">Where to Keep Emergency Cash</h5>
-              <div className="mb-3">
-                <h6 className="fw-bold text-success mb-1"><i className="bi bi-check-circle-fill me-1"></i> High-Yield Savings (HYSA)</h6>
-                <p className="text-muted small mb-0">Earns 4-5% APY while keeping your capital 100% FDIC-insured and withdrawable within 1-2 business days.</p>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="fw-bold mb-0">Where to Keep Emergency Cash</h5>
+                <span className="badge bg-success-subtle text-success rounded-pill small">4.5%+ APY</span>
               </div>
-              <div className="mb-3">
-                <h6 className="fw-bold text-warning mb-1"><i className="bi bi-exclamation-triangle-fill me-1"></i> Standard Checking</h6>
-                <p className="text-muted small mb-0">Keep at most 1 month of expenses here for bills. Excessive balances lose value to inflation at 0.01% interest.</p>
+
+              {/* High-Yield Affiliate Recommendation Cards */}
+              <div className="p-3 mb-3 rounded-3" style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1px solid #bfdbfe' }}>
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span className="badge bg-primary text-white rounded-pill px-2 py-1 mb-1" style={{ fontSize: '10px' }}>
+                      TOP HYSA PICK
+                    </span>
+                    <h6 className="fw-bold text-dark mb-0">Wealthfront Cash</h6>
+                  </div>
+                  <span className="badge bg-success text-white fw-bold fs-6">5.00% APY</span>
+                </div>
+                <p className="text-muted small mb-2" style={{ fontSize: '11px' }}>
+                  Earn $500/year for every $10,000 saved. FDIC insured up to $8M, zero account fees, free same-day transfers.
+                </p>
+                <a
+                  href="https://www.wealthfront.com/cash"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="btn btn-sm btn-primary rounded-pill w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-sm"
+                  style={{ fontSize: '12px' }}
+                >
+                  <span>Open Wealthfront Account</span>
+                  <i className="bi bi-box-arrow-up-right" style={{ fontSize: '10px' }}></i>
+                </a>
               </div>
-              <div>
-                <h6 className="fw-bold text-danger mb-1"><i className="bi bi-x-circle-fill me-1"></i> Stocks / Crypto</h6>
-                <p className="text-muted small mb-0">Never place your emergency fund in volatile assets. A market downturn may force you to sell at a 30% loss during an emergency.</p>
+
+              <div className="p-3 mb-3 rounded-3 border bg-light">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h6 className="fw-bold text-dark mb-0">Marcus by Goldman Sachs</h6>
+                    <span className="text-muted" style={{ fontSize: '10px' }}>No minimum deposit • Zero fees</span>
+                  </div>
+                  <span className="badge bg-dark text-white fw-bold">4.40% APY</span>
+                </div>
+                <p className="text-muted small mb-2" style={{ fontSize: '11px' }}>
+                  Institutional-grade safety with Goldman Sachs. No balance minimums or transaction fees.
+                </p>
+                <a
+                  href="https://www.marcus.com/us/en/savings/high-yield-savings"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="btn btn-sm btn-outline-dark rounded-pill w-100 fw-semibold d-flex align-items-center justify-content-center gap-1"
+                  style={{ fontSize: '12px' }}
+                >
+                  <span>View Marcus Rates</span>
+                  <i className="bi bi-box-arrow-up-right" style={{ fontSize: '10px' }}></i>
+                </a>
+              </div>
+
+              <div className="p-3 mb-3 rounded-3 border bg-light">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h6 className="fw-bold text-dark mb-0">SoFi Savings &amp; Checking</h6>
+                    <span className="text-muted" style={{ fontSize: '10px' }}>$300 Bonus with Direct Deposit</span>
+                  </div>
+                  <span className="badge bg-primary text-white fw-bold">4.60% APY</span>
+                </div>
+                <p className="text-muted small mb-2" style={{ fontSize: '11px' }}>
+                  Full all-in-one digital banking with automated vaults and round-up savings.
+                </p>
+                <a
+                  href="https://www.sofi.com/banking/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="btn btn-sm btn-outline-primary rounded-pill w-100 fw-semibold d-flex align-items-center justify-content-center gap-1"
+                  style={{ fontSize: '12px' }}
+                >
+                  <span>Explore SoFi ($300 Bonus)</span>
+                  <i className="bi bi-box-arrow-up-right" style={{ fontSize: '10px' }}></i>
+                </a>
+              </div>
+
+              <div className="text-muted text-center" style={{ fontSize: '10px' }}>
+                <i className="bi bi-info-circle me-1"></i>
+                Sponsored Financial Partners. Rates subject to change based on Fed interest rates.
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { ExpenseContext } from '../../context/ExpenseContext';
 import { UserContext } from '../../context/UserContext';
 import { parseResponse, apiFetch } from '../../utils/api';
@@ -8,18 +8,37 @@ export default function AdminSystem() {
     dbStatus,
     dbInfo,
     refreshFromDb,
-    allExpenses,
-    allIncomes,
-    allSavingsGoals,
-    budgets,
+    expenses = [],
+    incomes = [],
+    savingsGoals = [],
+    budgets = {},
     loadSampleData,
     resetAllData
   } = useContext(ExpenseContext);
 
-  const { users } = useContext(UserContext);
+  const { token, currentUser } = useContext(UserContext);
 
+  const [stats, setStats] = useState(null);
   const [pingStatus, setPingStatus] = useState(null);
   const [isPinging, setIsPinging] = useState(false);
+  const [maintenanceMsg, setMaintenanceMsg] = useState(null);
+
+  const fetchStats = async () => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { ok, data } = await parseResponse(res);
+      if (ok && data) setStats(data);
+    } catch (err) {
+      console.warn('Could not fetch admin system stats:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [token]);
 
   const handlePing = async () => {
     setIsPinging(true);
@@ -49,11 +68,14 @@ export default function AdminSystem() {
       exportTimestamp: new Date().toISOString(),
       platform: 'SmartFinance PRO',
       environment: 'Production',
-      users,
-      expenses: allExpenses,
-      incomes: allIncomes,
-      savingsGoals: allSavingsGoals,
-      budgets
+      currentUser: currentUser?.email,
+      systemStats: stats,
+      personalWorkspace: {
+        expenses,
+        incomes,
+        savingsGoals,
+        budgets
+      }
     };
 
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backup, null, 2));
@@ -166,7 +188,9 @@ export default function AdminSystem() {
                   <i className="bi bi-people text-warning"></i>
                   <span className="fw-semibold small">users</span>
                 </div>
-                <span className="badge bg-primary rounded-pill">{users.length} rows</span>
+                <span className="badge bg-primary rounded-pill">
+                  {stats?.totalUsers ?? 1} rows
+                </span>
               </div>
 
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
@@ -174,7 +198,9 @@ export default function AdminSystem() {
                   <i className="bi bi-arrow-up-right text-danger"></i>
                   <span className="fw-semibold small">expenses</span>
                 </div>
-                <span className="badge bg-danger rounded-pill">{allExpenses.length} rows</span>
+                <span className="badge bg-danger rounded-pill">
+                  {stats?.databaseMetrics?.totalExpenseRows ?? expenses.length} rows
+                </span>
               </div>
 
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
@@ -182,7 +208,9 @@ export default function AdminSystem() {
                   <i className="bi bi-arrow-down-left text-success"></i>
                   <span className="fw-semibold small">incomes</span>
                 </div>
-                <span className="badge bg-success rounded-pill">{allIncomes.length} rows</span>
+                <span className="badge bg-success rounded-pill">
+                  {stats?.databaseMetrics?.totalIncomeRows ?? incomes.length} rows
+                </span>
               </div>
 
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
@@ -190,7 +218,9 @@ export default function AdminSystem() {
                   <i className="bi bi-piggy-bank text-info"></i>
                   <span className="fw-semibold small">savings_goals</span>
                 </div>
-                <span className="badge bg-info text-dark rounded-pill">{allSavingsGoals.length} rows</span>
+                <span className="badge bg-info text-dark rounded-pill">
+                  {stats?.databaseMetrics?.totalGoalRows ?? savingsGoals.length} rows
+                </span>
               </div>
 
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
@@ -198,7 +228,9 @@ export default function AdminSystem() {
                   <i className="bi bi-sliders text-secondary"></i>
                   <span className="fw-semibold small">budgets</span>
                 </div>
-                <span className="badge bg-secondary rounded-pill">{Object.keys(budgets).length} rows</span>
+                <span className="badge bg-secondary rounded-pill">
+                  {Object.keys(budgets || {}).length} rows
+                </span>
               </div>
             </div>
           </div>
@@ -207,22 +239,41 @@ export default function AdminSystem() {
 
       {/* Maintenance Controls */}
       <div className="card border-0 shadow-sm rounded-4 bg-white p-4">
-        <h5 className="fw-bold mb-2">Maintenance & Demo Seeding</h5>
+        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <h5 className="fw-bold mb-0">Maintenance &amp; Data Operations</h5>
+          {maintenanceMsg && (
+            <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+              <i className="bi bi-check-circle me-1"></i>{maintenanceMsg}
+            </span>
+          )}
+        </div>
         <p className="text-muted small mb-4">
-          Quick actions for demonstration, testing, and clearing simulated environment datasets.
+          Quick administrative actions for workspace initialization and clearing entity records.
         </p>
 
         <div className="d-flex flex-wrap gap-3">
           <button
-            onClick={loadSampleData}
+            onClick={async () => {
+              await loadSampleData?.();
+              await fetchStats();
+              setMaintenanceMsg('Sample workspace data loaded.');
+              setTimeout(() => setMaintenanceMsg(null), 4000);
+            }}
             className="btn btn-success rounded-pill px-4 shadow-sm d-flex align-items-center gap-2"
           >
             <i className="bi bi-database-add"></i>
-            <span>Seed Multi-Client Demo Data</span>
+            <span>Load Sample Workspace Data</span>
           </button>
 
           <button
-            onClick={resetAllData}
+            onClick={async () => {
+              if (window.confirm('Purge all financial records in your workspace?')) {
+                await resetAllData?.();
+                await fetchStats();
+                setMaintenanceMsg('Workspace financial records cleared.');
+                setTimeout(() => setMaintenanceMsg(null), 4000);
+              }
+            }}
             className="btn btn-outline-danger rounded-pill px-4 d-flex align-items-center gap-2"
           >
             <i className="bi bi-trash3-fill"></i>

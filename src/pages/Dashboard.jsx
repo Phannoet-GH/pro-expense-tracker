@@ -1,5 +1,8 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useRef } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
+import { UserContext } from '../context/UserContext';
+import { useBilling } from '../context/BillingContext';
+import { apiFetch, parseResponse } from '../utils/api';
 import { Link } from 'react-router-dom';
 import AutoExpenseCalculator from '../components/AutoExpenseCalculator';
 
@@ -24,9 +27,15 @@ export default function Dashboard() {
     currency
   } = useContext(ExpenseContext);
 
+  const { token } = useContext(UserContext) || {};
+  const { isPro, billingData, openPricingModal, refreshBilling } = useBilling();
+
   // Transaction form type toggle: 'expense' | 'income'
   const [txType, setTxType] = useState('expense');
   const [showAutoCalcModal, setShowAutoCalcModal] = useState(false);
+  const fileInputRef = useRef(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -37,7 +46,9 @@ export default function Dashboard() {
     amount: '',
     notes: '',
     receipt: null,
-    is_recurring: false
+    is_recurring: false,
+    is_tax_deductible: false,
+    tax_category: 'General Business'
   });
 
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
@@ -63,13 +74,70 @@ export default function Dashboard() {
     return combined.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 7);
   }, [expenses, incomes]);
 
+  const handleScanReceipt = async (payload) => {
+    if (!billingData.canScan && !isPro) {
+      openPricingModal('Unlimited AI Receipt Scanning');
+      return;
+    }
+
+    setIsScanning(true);
+    setScanMessage('AI scanning receipt image & extracting line items...');
+    try {
+      const res = await apiFetch('/api/expenses/scan-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const { ok, data } = await parseResponse(res);
+      if (!ok) {
+        if (data?.upgradeRequired) {
+          openPricingModal('Unlimited AI Receipt Scanning');
+        }
+        throw new Error(data?.error || 'Receipt scan failed');
+      }
+
+      if (data?.receipt) {
+        setFormData(prev => ({
+          ...prev,
+          title: data.receipt.merchant || prev.title,
+          amount: data.receipt.amount ? data.receipt.amount.toString() : prev.amount,
+          category: data.receipt.category || prev.category,
+          date: data.receipt.date || prev.date,
+          is_tax_deductible: !!data.receipt.is_tax_deductible,
+          tax_category: data.receipt.tax_category || 'General Business',
+          receipt: data.receipt
+        }));
+        setScanMessage(`✅ Scanned: ${data.receipt.merchant} ($${data.receipt.amount})`);
+        setTimeout(() => setScanMessage(''), 3500);
+      }
+
+      await refreshBilling();
+    } catch (err) {
+      setScanMessage(`Scan error: ${err.message}`);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleScanReceipt({
+      fileName: file.name,
+      receiptText: file.name
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSelectSampleReceipt = (rec) => {
-    setFormData({
-      ...formData,
-      title: rec.merchant,
-      category: rec.category,
-      amount: rec.amount.toString(),
-      receipt: rec
+    handleScanReceipt({
+      sampleId: rec.id,
+      fileName: `${rec.merchant}_Receipt.pdf`,
+      receiptText: `${rec.merchant} total $${rec.amount} items: ${rec.items?.join(', ')}`
     });
   };
 
@@ -84,7 +152,9 @@ export default function Dashboard() {
         category: formData.category,
         date: formData.date,
         notes: formData.notes,
-        receipt: formData.receipt
+        receipt: formData.receipt,
+        is_tax_deductible: formData.is_tax_deductible,
+        tax_category: formData.tax_category
       });
     } else {
       addIncome({
@@ -106,7 +176,9 @@ export default function Dashboard() {
       amount: '',
       notes: '',
       receipt: null,
-      is_recurring: false
+      is_recurring: false,
+      is_tax_deductible: false,
+      tax_category: 'General Business'
     });
   };
 
@@ -441,47 +513,92 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Receipt Attachment (Only for Expenses) */}
+              {/* Receipt Attachment & AI OCR (Only for Expenses) */}
               {txType === 'expense' && (
-                <div className="mb-3 p-2 bg-light rounded-3 border">
+                <div className="mb-3 p-3 bg-light rounded-3 border">
                   <div className="d-flex justify-content-between align-items-center mb-2">
-                    <span className="small fw-semibold text-muted">
-                      <i className="bi bi-receipt me-1 text-primary"></i> Receipt Attachment Simulator
+                    <span className="small fw-semibold text-dark d-flex align-items-center gap-1">
+                      <i className="bi bi-cpu-fill text-primary"></i> AI Receipt Scanner
                     </span>
-                    {formData.receipt && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-link text-danger p-0 text-decoration-none small"
-                        onClick={() => setFormData({ ...formData, receipt: null })}
-                      >
-                        Remove
-                      </button>
-                    )}
+                    <div className="d-flex align-items-center gap-2">
+                      <span className={`badge rounded-pill ${isPro ? 'bg-primary-subtle text-primary' : 'bg-warning-subtle text-dark'} small`} style={{ fontSize: '10px' }}>
+                        {isPro ? '⭐ Unlimited AI Scans' : `Scans Left: ${billingData?.scansRemaining ?? 3}/3`}
+                      </span>
+                      {formData.receipt && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link text-danger p-0 text-decoration-none small"
+                          onClick={() => setFormData({ ...formData, receipt: null })}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
 
+                  {scanMessage && (
+                    <div className="alert alert-info py-1 px-2 small mb-2 rounded-2 d-flex align-items-center gap-1">
+                      <span className="spinner-border spinner-border-sm me-1" role="status" style={{ display: isScanning ? 'inline-block' : 'none' }}></span>
+                      <span>{scanMessage}</span>
+                    </div>
+                  )}
+
                   {formData.receipt ? (
-                    <div className="d-flex align-items-center gap-2 bg-white text-dark p-2 rounded-2 small border">
+                    <div className="d-flex align-items-center gap-2 bg-white text-dark p-2 rounded-2 small border shadow-sm">
                       <i className="bi bi-file-earmark-check-fill text-success fs-5"></i>
                       <div className="flex-grow-1 text-truncate">
-                        <strong>{formData.receipt.merchant}</strong>
+                        <div className="fw-bold">{formData.receipt.merchant}</div>
                         <div className="text-muted" style={{ fontSize: '11px' }}>
-                          Auto-scanned ${formData.receipt.amount} receipt
+                          Auto-parsed ${formData.receipt.amount} • {formData.receipt.category} • {formData.receipt.tax_category || 'Deductible'}
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <div className="text-muted" style={{ fontSize: '11px', marginBottom: '6px' }}>
-                        Click a sample receipt to simulate OCR auto-fill:
+                      {/* Hidden File Input */}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept="image/*,.pdf"
+                        className="d-none"
+                      />
+
+                      <div className="d-flex gap-2 mb-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary rounded-pill w-100 py-1 d-flex align-items-center justify-content-center gap-1"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isScanning}
+                        >
+                          <i className="bi bi-camera-fill"></i>
+                          <span>Upload Receipt Photo</span>
+                        </button>
+
+                        {!isPro && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-warning rounded-pill text-dark fw-semibold px-2 py-1"
+                            onClick={() => openPricingModal('Unlimited AI Receipt Scanning')}
+                            title="Upgrade to Pro for unlimited scans"
+                          >
+                            <i className="bi bi-stars"></i> Pro
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="text-muted" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                        Or test with sample receipts:
                       </div>
                       <div className="d-flex gap-1 flex-wrap">
                         {sampleReceipts.map((rec) => (
                           <button
                             key={rec.id}
                             type="button"
-                            className="btn btn-xs btn-outline-primary"
-                            style={{ fontSize: '11px', padding: '3px 8px' }}
+                            className="btn btn-xs btn-outline-secondary"
+                            style={{ fontSize: '11px', padding: '2px 7px' }}
                             onClick={() => handleSelectSampleReceipt(rec)}
+                            disabled={isScanning}
                           >
                             + {rec.merchant} (${rec.amount})
                           </button>
@@ -489,6 +606,27 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Tax Write-Off Tagging Toggle (Only for Expenses) */}
+              {txType === 'expense' && (
+                <div className="form-check form-switch mb-3 p-2 bg-light rounded-3 border d-flex justify-content-between align-items-center">
+                  <div className="ps-2">
+                    <label className="form-check-label fw-semibold small text-dark d-flex align-items-center gap-1" htmlFor="taxDeductibleCheck">
+                      <i className="bi bi-shield-check text-success"></i> Schedule C Tax Deductible
+                    </label>
+                    <div className="text-muted" style={{ fontSize: '11px' }}>
+                      Tag as a business expense for tax write-offs
+                    </div>
+                  </div>
+                  <input
+                    className="form-check-input ms-0 shadow-none me-2"
+                    type="checkbox"
+                    id="taxDeductibleCheck"
+                    checked={formData.is_tax_deductible}
+                    onChange={(e) => setFormData({ ...formData, is_tax_deductible: e.target.checked })}
+                  />
                 </div>
               )}
 

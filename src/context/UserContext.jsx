@@ -3,44 +3,7 @@ import { parseResponse, apiFetch } from '../utils/api';
 
 export const UserContext = createContext();
 
-export const DEMO_CREDENTIALS = [
-  {
-    role: 'client',
-    name: 'Sophia Chen',
-    email: 'sophia.chen@example.com',
-    password: 'SophiaPass@2026',
-    easyPassword: '123456',
-    title: 'Senior UX Designer',
-    badge: 'Standard Client'
-  },
-  {
-    role: 'client',
-    name: 'Marcus Brody',
-    email: 'marcus.brody@example.com',
-    password: 'MarcusPass@2026',
-    easyPassword: '123456',
-    title: 'Freelance Software Architect',
-    badge: 'Freelancer Client'
-  },
-  {
-    role: 'client',
-    name: 'Elena Rostova',
-    email: 'elena.rostova@example.com',
-    password: 'ElenaPass@2026',
-    easyPassword: '123456',
-    title: 'Marketing Director',
-    badge: 'Executive Client'
-  },
-  {
-    role: 'admin',
-    name: 'Alex Vance',
-    email: 'admin@smartfinance.pro',
-    password: 'admin',
-    easyPassword: 'admin',
-    title: 'Lead System Administrator',
-    badge: 'Platform Administrator'
-  }
-];
+export const DEMO_CREDENTIALS = [];
 
 export function UserProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('smartfinance_auth_token') || null);
@@ -106,7 +69,7 @@ export function UserProvider({ children }) {
 
       const { ok, data } = await parseResponse(res);
       if (!ok) {
-        throw new Error(data?.error || 'Invalid email or password. Please verify your credentials or click a demo account below.');
+        throw new Error(data?.error || 'Invalid email or password. Please check your credentials and try again.');
       }
 
       setToken(data.token);

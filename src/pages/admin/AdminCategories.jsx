@@ -1,8 +1,15 @@
 import React, { useState, useContext } from 'react';
-import { ExpenseContext } from '../../context/ExpenseContext';
+import { ExpenseContext, CORE_EXPENSE_CATEGORIES } from '../../context/ExpenseContext';
 
 export default function AdminCategories() {
-  const { coreExpenseCategories, formatAmount, allExpenses } = useContext(ExpenseContext);
+  const { coreExpenseCategories, formatAmount, expenses } = useContext(ExpenseContext);
+
+  const categories = coreExpenseCategories && coreExpenseCategories.length > 0
+    ? coreExpenseCategories
+    : (CORE_EXPENSE_CATEGORIES || ['Room', 'Food & Drink', 'Transport', 'Internet', 'Other']);
+
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const safeFormat = typeof formatAmount === 'function' ? formatAmount : (amt) => `$${parseFloat(amt || 0).toFixed(2)}`;
 
   const [benchmarks, setBenchmarks] = useState({
     'Room': 35,
@@ -16,9 +23,9 @@ export default function AdminCategories() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Calculate platform aggregate spend per category
-  const categoryStats = coreExpenseCategories.map(cat => {
-    const totalSpent = allExpenses
-      .filter(e => e.category === cat)
+  const categoryStats = categories.map(cat => {
+    const totalSpent = safeExpenses
+      .filter(e => e && e.category === cat)
       .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
     return {
       name: cat,
@@ -73,7 +80,7 @@ export default function AdminCategories() {
 
             <form onSubmit={handleSave}>
               <div className="d-flex flex-column gap-3 mb-4">
-                {coreExpenseCategories.map(cat => (
+                {categories.map(cat => (
                   <div key={cat} className="p-3 bg-light rounded-3 border">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <div className="d-flex align-items-center gap-2">
@@ -143,7 +150,7 @@ export default function AdminCategories() {
                 value={bufferCategory}
                 onChange={(e) => setBufferCategory(e.target.value)}
               >
-                {coreExpenseCategories.map(cat => (
+                {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
@@ -167,7 +174,7 @@ export default function AdminCategories() {
                 <div key={stat.name}>
                   <div className="d-flex justify-content-between small mb-1">
                     <span className="fw-semibold text-dark">{stat.name}</span>
-                    <span className="text-muted">{formatAmount(stat.totalSpent)}</span>
+                    <span className="text-muted">{safeFormat(stat.totalSpent)}</span>
                   </div>
                   <div className="progress" style={{ height: '6px' }}>
                     <div

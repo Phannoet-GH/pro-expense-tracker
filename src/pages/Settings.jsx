@@ -23,14 +23,14 @@ export default function Settings() {
   return (
     <div className="card border-0 shadow-sm rounded-4 p-4 bg-white" style={{ maxWidth: '750px' }}>
       <h3 className="fw-bold mb-1 text-dark">Settings & Financial Controls</h3>
-      <p className="text-muted small mb-4">Manage MySQL persistence, currency display, demo portfolio data, and database maintenance</p>
+      <p className="text-muted small mb-4">Manage MySQL persistence, currency display, sample portfolio data, and database maintenance</p>
 
       {/* 1-Click Sample Data Loader Banner */}
       <div className="card border-0 rounded-4 p-4 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div>
             <h5 className="fw-bold mb-1">
-              <i className="bi bi-magic me-2"></i>Quick Demo: Load Realistic Sample Data
+              <i className="bi bi-magic me-2"></i>Starter Kit: Load Realistic Sample Data
             </h5>
             <p className="text-white-50 small mb-0" style={{ maxWidth: '460px' }}>
               Instantly populate realistic monthly incomes, itemized expenses with scanned receipts, and active savings goals to test every feature.

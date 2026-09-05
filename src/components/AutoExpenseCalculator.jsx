@@ -11,18 +11,14 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
     applyAutoBudgets
   } = useContext(ExpenseContext);
 
-  // Default income: total recorded income or fallback to $2,000
-  const [incomeInput, setIncomeInput] = useState(() => {
-    return totalIncome > 0 ? totalIncome.toString() : '2000';
-  });
+  // Start with clean empty inputs — no forced default values to delete
+  const [incomeInput, setIncomeInput] = useState('');
 
-  // Default saving goal: 20% of income or $400
   const [savingGoalInput, setSavingGoalInput] = useState(() => {
     if (preselectedGoal && preselectedGoal.target_amount) {
       return Math.round(parseFloat(preselectedGoal.target_amount) / 6).toString();
     }
-    const inc = totalIncome > 0 ? totalIncome : 2000;
-    return Math.round(inc * 0.20).toString();
+    return '';
   });
 
   // Selected goal dropdown link
@@ -345,21 +341,21 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
                   setIncomeInput(e.target.value);
                   setAppliedSuccess(false);
                 }}
-                placeholder="2000"
+                placeholder="Enter monthly income"
               />
             </div>
             <div className="d-flex justify-content-between align-items-center mt-1">
               <span className="small text-muted" style={{ fontSize: '11px' }}>
-                Actual recorded: {formatAmount(totalIncome)}
+                {totalIncome > 0 ? `Recorded: ${formatAmount(totalIncome)}` : 'No income recorded'}
               </span>
               {totalIncome > 0 && (
                 <button
                   type="button"
-                  className="btn btn-link p-0 text-primary small text-decoration-none"
+                  className="btn btn-link p-0 text-primary small text-decoration-none fw-semibold"
                   style={{ fontSize: '11px' }}
                   onClick={() => setIncomeInput(totalIncome.toString())}
                 >
-                  Use Actual
+                  Use Actual ({formatAmount(totalIncome)})
                 </button>
               )}
             </div>
@@ -385,7 +381,7 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
                   setSelectedGoalId('');
                   setAppliedSuccess(false);
                 }}
-                placeholder="400"
+                placeholder="Enter saving goal"
               />
             </div>
 
@@ -399,8 +395,10 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
                   className="btn btn-xs btn-outline-success rounded-pill px-2 py-0"
                   style={{ fontSize: '11px' }}
                   onClick={() => handleQuickPercent(pct)}
+                  disabled={income <= 0}
+                  title={income <= 0 ? 'Enter monthly income first' : `Set saving goal to ${pct}% of income`}
                 >
-                  {pct}% ({formatAmount(income * (pct / 100))})
+                  {pct}% {income > 0 ? `(${formatAmount(income * (pct / 100))})` : ''}
                 </button>
               ))}
             </div>
@@ -436,18 +434,28 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
               Calculated Monthly Expense Budget (Income - Saving Goal)
             </span>
             <div className="d-flex align-items-baseline gap-2">
-              <h2 className="fw-bold text-primary m-0">{formatAmount(allowedTotalExpenses)}</h2>
-              <span className="text-muted small">
-                ({income > 0 ? Math.round((allowedTotalExpenses / income) * 100) : 0}% of income)
-              </span>
+              <h2 className="fw-bold text-primary m-0">
+                {allowedTotalExpenses > 0 ? formatAmount(allowedTotalExpenses) : `${currency}0.00`}
+              </h2>
+              {income > 0 && (
+                <span className="text-muted small">
+                  ({Math.round((allowedTotalExpenses / income) * 100)}% of income)
+                </span>
+              )}
             </div>
+            {!incomeInput && (
+              <small className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
+                <i className="bi bi-info-circle me-1 text-primary"></i>
+                Enter your monthly income above to calculate category allowances.
+              </small>
+            )}
           </div>
 
           <div className="d-flex align-items-center gap-3">
             <div className="text-end">
               <span className="small text-muted d-block">Monthly Savings Protected:</span>
               <span className="badge bg-success-subtle text-success fs-6 fw-bold">
-                +{formatAmount(savingGoal)} / month ({income > 0 ? Math.round((savingGoal / income) * 100) : 0}%)
+                +{formatAmount(savingGoal)} / month {income > 0 ? `(${Math.round((savingGoal / income) * 100)}%)` : ''}
               </span>
             </div>
             <button

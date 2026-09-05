@@ -1,11 +1,11 @@
 import mysql from 'mysql2/promise';
 
 const DB_CONFIG = {
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'root',
-  database: process.env.DB_NAME || 'pro_expense_tracker'
+  host:     process.env.DB_HOST     || process.env.MYSQLHOST     || process.env.MYSQL_HOST     || '127.0.0.1',
+  port:     parseInt(process.env.DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306', 10),
+  user:     process.env.DB_USER     || process.env.MYSQLUSER     || process.env.MYSQL_USER     || 'root',
+  password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || 'root',
+  database: process.env.DB_NAME     || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'pro_expense_tracker'
 };
 
 let pool = null;

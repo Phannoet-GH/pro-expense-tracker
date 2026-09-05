@@ -366,34 +366,18 @@ const PRICING_PLANS = {
   pro: {
     id: 'pro',
     name: 'SmartFinance PRO',
-    priceMonthly: 7.99,
-    priceAnnual: 69.00,
+    priceMonthly: 2.00,
+    priceAnnual: 24.00,
     scansPerMonth: 'unlimited',
     maxGoals: 'unlimited',
     features: [
       'Unlimited AI receipt OCR scanning',
       'Schedule C Freelancer Tax Write-Offs',
-      'Audit-ready PDF tax statements',
+      'Audit-ready PDF & CPA tax statements',
       'Unlimited savings goals & custom budgets',
       'Advanced financial forecasting charts',
-      'High-Yield Savings affiliate comparisons',
-      'Priority cloud sync & 24/7 support'
-    ]
-  },
-  enterprise: {
-    id: 'enterprise',
-    name: 'Advisor & Accountant Suite',
-    priceMonthly: 29.99,
-    priceAnnual: 249.00,
-    scansPerMonth: 'unlimited',
-    maxGoals: 'unlimited',
-    features: [
-      'Everything in SmartFinance PRO',
-      'Multi-client management portal',
-      'White-label branding & custom domain ready',
-      'Direct accountant export (QBO/Xero format)',
-      'Client milestone & savings audit logs',
-      'Dedicated account manager'
+      'High-Yield Savings comparisons',
+      'Direct support via admin@gmail.com'
     ]
   }
 };
@@ -456,6 +440,88 @@ app.post('/api/billing/upgrade-test', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update subscription tier' });
+  }
+});
+
+// POST /api/billing/upgrade-request (User submits PRO purchase/upgrade request directed to admin gmail)
+app.post('/api/billing/upgrade-request', async (req, res) => {
+  try {
+    const { name, email, payment_method, message, plan = 'pro', price = '$2/mo' } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const pool = getPool();
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    let userId = 'guest';
+
+    // Optional user token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded.id;
+      } catch {}
+    }
+
+    await pool.query(
+      `INSERT INTO upgrade_requests (id, user_id, user_name, user_email, plan, price, payment_method, message, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [requestId, userId, name, email, plan, price, payment_method || 'Standard Inquiry', message || '']
+    );
+
+    console.log(`📩 [PRO Upgrade Request] Received from ${name} (${email}) for admin@gmail.com. Method: ${payment_method}, Msg: ${message}`);
+
+    res.json({
+      success: true,
+      requestId,
+      message: 'Your upgrade request has been sent to Admin (admin@gmail.com)! Your PRO access will be activated upon verification.',
+      adminEmail: 'admin@gmail.com'
+    });
+  } catch (error) {
+    console.error('Upgrade request error:', error);
+    res.status(500).json({ error: 'Failed to process upgrade request' });
+  }
+});
+
+// GET /api/admin/upgrade-requests (Admin views upgrade requests)
+app.get('/api/admin/upgrade-requests', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM upgrade_requests ORDER BY created_at DESC LIMIT 50');
+    res.json({ success: true, requests: rows });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch upgrade requests' });
+  }
+});
+
+// PATCH /api/admin/upgrade-requests/:id/approve (Admin approves and upgrades user to PRO)
+app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM upgrade_requests WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Request not found' });
+
+    const request = rows[0];
+    await pool.query("UPDATE upgrade_requests SET status = 'approved' WHERE id = ?", [id]);
+
+    // Activate PRO for user if account exists with this email or user_id
+    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await pool.query(
+      `UPDATE users
+       SET plan_tier = 'pro', subscription_status = 'active', current_period_end = ?
+       WHERE email = ? OR id = ?`,
+      [periodEnd, request.user_email, request.user_id]
+    );
+
+    res.json({
+      success: true,
+      message: `PRO plan successfully activated for ${request.user_name} (${request.user_email})!`
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to approve upgrade request' });
   }
 });
 

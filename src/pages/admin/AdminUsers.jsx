@@ -9,6 +9,44 @@ export default function AdminUsers() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState(null);
+  const [upgradeRequests, setUpgradeRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+
+  const fetchUpgradeRequests = async () => {
+    if (!token) return;
+    setRequestsLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/upgrade-requests', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { ok, data } = await parseResponse(res);
+      if (ok && Array.isArray(data?.requests)) {
+        setUpgradeRequests(data.requests);
+      }
+    } catch (err) {
+      console.warn('Could not fetch upgrade requests:', err);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const handleApproveRequest = async (reqId) => {
+    try {
+      const res = await apiFetch(`/api/admin/upgrade-requests/${reqId}/approve`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { ok, data } = await parseResponse(res);
+      if (ok) {
+        setActionMessage(data.message || 'PRO upgrade approved successfully!');
+        setTimeout(() => setActionMessage(null), 4000);
+        fetchUpgradeRequests();
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error('Failed to approve request:', err);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -47,6 +85,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
+    fetchUpgradeRequests();
   }, [token]);
 
   const handleToggleStatus = async (user) => {
@@ -128,6 +167,94 @@ export default function AdminUsers() {
       </div>
 
 
+      {/* PRO Upgrade Inquiries Card */}
+      <div className="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+              <i className="bi bi-envelope-paper-fill text-primary"></i>
+              <span>PRO Upgrade Inquiries</span>
+              <span className="badge bg-primary-subtle text-primary rounded-pill px-2 py-1 small">
+                Target: admin@gmail.com
+              </span>
+            </h5>
+            <p className="text-muted small mb-0">
+              Users requesting SmartFinance PRO ($2/mo). Review and activate with one click.
+            </p>
+          </div>
+          <button
+            onClick={fetchUpgradeRequests}
+            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+          >
+            <i className="bi bi-arrow-clockwise me-1"></i> Refresh Inquiries
+          </button>
+        </div>
+
+        {requestsLoading ? (
+          <div className="text-center py-3 text-muted small">
+            <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+            Checking inquiries...
+          </div>
+        ) : upgradeRequests.length === 0 ? (
+          <div className="p-3 bg-light rounded-3 text-muted small text-center">
+            <i className="bi bi-inbox me-1"></i> No pending PRO upgrade inquiries at this time.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0 small">
+              <thead className="table-light text-uppercase" style={{ fontSize: '11px' }}>
+                <tr>
+                  <th>Client</th>
+                  <th>Plan &amp; Price</th>
+                  <th>Payment Method</th>
+                  <th>Message / Notes</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th className="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upgradeRequests.map(req => (
+                  <tr key={req.id}>
+                    <td>
+                      <div className="fw-bold text-dark">{req.user_name}</div>
+                      <div className="text-muted" style={{ fontSize: '11px' }}>{req.user_email}</div>
+                    </td>
+                    <td>
+                      <span className="badge bg-primary-subtle text-primary fw-bold">
+                        {req.plan?.toUpperCase()} ({req.price})
+                      </span>
+                    </td>
+                    <td>{req.payment_method || 'Standard'}</td>
+                    <td className="text-muted" style={{ maxWidth: '200px' }}>
+                      {req.message || '—'}
+                    </td>
+                    <td className="font-monospace text-muted" style={{ fontSize: '11px' }}>
+                      {req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td>
+                      <span className={`badge rounded-pill ${req.status === 'approved' ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
+                        {req.status === 'approved' ? 'Approved' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="text-end">
+                      {req.status === 'pending' && (
+                        <button
+                          onClick={() => handleApproveRequest(req.id)}
+                          className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
+                        >
+                          <i className="bi bi-check2-circle me-1"></i> Approve PRO
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Search & Filter Bar */}
       <div className="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">
         <div className="row g-3 align-items-center">
@@ -168,6 +295,7 @@ export default function AdminUsers() {
               <tr>
                 <th className="ps-4">User Account</th>
                 <th>Role</th>
+                <th>Plan</th>
                 <th>Status</th>
                 <th>Registered Date</th>
                 <th>Last Active Login</th>
@@ -177,14 +305,14 @@ export default function AdminUsers() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5">
+                  <td colSpan="7" className="text-center py-5">
                     <span className="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
                     Loading user directory...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5 text-muted">
+                  <td colSpan="7" className="text-center py-5 text-muted">
                     No accounts found matching your query.
                   </td>
                 </tr>
@@ -209,6 +337,11 @@ export default function AdminUsers() {
                     <td>
                       <span className={`badge rounded-pill ${user.role === 'admin' ? 'bg-danger text-white' : 'bg-primary-subtle text-primary border border-primary-subtle'}`}>
                         {user.role === 'admin' ? 'Super Admin' : 'Client User'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge rounded-pill ${user.plan_tier === 'pro' || user.role === 'admin' ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}`}>
+                        {user.role === 'admin' ? 'Admin Suite' : user.plan_tier === 'pro' ? 'PRO ($2/mo)' : 'Free'}
                       </span>
                     </td>
                     <td>

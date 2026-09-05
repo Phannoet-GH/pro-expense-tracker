@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useBilling } from '../context/BillingContext';
+import { UserContext } from '../context/UserContext';
+import { apiFetch, parseResponse } from '../utils/api';
 
 export default function PricingModal() {
   const {
@@ -11,26 +13,95 @@ export default function PricingModal() {
     isLoading
   } = useBilling();
 
-  const [interval, setInterval] = useState('annual'); // 'monthly' | 'annual'
+  const { currentUser, token } = useContext(UserContext) || {};
+
+  const [interval, setInterval] = useState('monthly'); // 'monthly' | 'annual'
   const [upgradingTier, setUpgradingTier] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  
+  // Buy / Request Form State
+  const [showBuyForm, setShowBuyForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [buyFormData, setBuyFormData] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    payment_method: 'ABA Pay / KHQR',
+    message: ''
+  });
 
   if (!isPricingModalOpen) return null;
 
-  const handleUpgrade = async (targetTier) => {
-    setUpgradingTier(targetTier);
+  // Handle direct request to admin@gmail.com
+  const handleBuyFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!buyFormData.name || !buyFormData.email) return;
+
+    setIsSubmitting(true);
     setFeedbackMsg('');
-    const res = await upgradePlan(targetTier);
+
+    try {
+      const res = await apiFetch('/api/billing/upgrade-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          name: buyFormData.name,
+          email: buyFormData.email,
+          payment_method: buyFormData.payment_method,
+          message: buyFormData.message,
+          plan: 'pro',
+          price: interval === 'annual' ? '$24/year ($2/mo)' : '$2/month'
+        })
+      });
+
+      const { ok, data } = await parseResponse(res);
+      if (!ok) throw new Error(data?.error || 'Failed to submit request');
+
+      setSubmittedSuccess(true);
+    } catch (err) {
+      setFeedbackMsg(err.message || 'Error submitting request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Instant demo activation toggle
+  const handleInstantDemoActivate = async () => {
+    setUpgradingTier('pro');
+    setFeedbackMsg('');
+    const res = await upgradePlan('pro');
     if (res.success) {
-      setFeedbackMsg(res.message);
+      setFeedbackMsg('PRO plan activated for this session!');
       setTimeout(() => {
-        setUpgradingTier(null);
-      }, 1500);
+        closePricingModal();
+        setShowBuyForm(false);
+        setSubmittedSuccess(false);
+      }, 1200);
     } else {
-      setFeedbackMsg(res.error || 'Upgrade failed');
+      setFeedbackMsg(res.error || 'Activation failed');
       setUpgradingTier(null);
     }
   };
+
+  const handleModalClose = () => {
+    closePricingModal();
+    setShowBuyForm(false);
+    setSubmittedSuccess(false);
+    setFeedbackMsg('');
+  };
+
+  const mailtoUrl = `mailto:admin@gmail.com?subject=${encodeURIComponent(
+    'SmartFinance PRO Upgrade Request ($2/mo)'
+  )}&body=${encodeURIComponent(
+    `Hello Administrator,\n\nI would like to upgrade my account to SmartFinance PRO ($2/month).\n\nName: ${
+      buyFormData.name || currentUser?.name || ''
+    }\nEmail: ${buyFormData.email || currentUser?.email || ''}\nPayment Preference: ${
+      buyFormData.payment_method
+    }\nNote: ${buyFormData.message || 'Ready to upgrade'}\n\nThank you!`
+  )}`;
 
   return (
     <div
@@ -42,7 +113,7 @@ export default function PricingModal() {
         zIndex: 1060
       }}
     >
-      <div className="modal-dialog modal-dialog-centered modal-xl">
+      <div className="modal-dialog modal-dialog-centered modal-lg">
         <div
           className="modal-content border-0 shadow-24"
           style={{
@@ -55,7 +126,7 @@ export default function PricingModal() {
           {upgradeTriggerReason && (
             <div
               className="px-4 py-2 text-center text-white fw-semibold small"
-              style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #d946ef)' }}
+              style={{ background: 'linear-gradient(90deg, #2563eb, #7c3aed)' }}
             >
               <i className="bi bi-stars me-2"></i>
               Feature Locked: {upgradeTriggerReason} — Upgrade to unlock instant access!
@@ -66,20 +137,22 @@ export default function PricingModal() {
           <div className="modal-header border-0 px-4 pt-4 pb-2 align-items-start">
             <div>
               <div className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary-subtle text-primary fw-semibold small mb-2">
-                <i className="bi bi-lightning-charge-fill"></i>
-                Accelerate Your Wealth
+                <i className="bi bi-rocket-takeoff-fill"></i>
+                Simple &amp; Affordable Plans
               </div>
-              <h3 className="modal-title fw-bold text-slate-900 mb-1">
-                Choose the Right Financial Plan
+              <h3 className="modal-title fw-bold text-dark mb-1">
+                {showBuyForm ? 'Complete PRO Upgrade Request' : 'Choose Your Financial Plan'}
               </h3>
               <p className="text-muted small mb-0">
-                Cancel anytime. All plans include automated database syncing and bank-grade security.
+                {showBuyForm
+                  ? 'Request will be sent to Admin (admin@gmail.com) for quick verification.'
+                  : 'Start free or get full tax deduction features for only $2/month.'}
               </p>
             </div>
             <button
               type="button"
               className="btn-close shadow-none"
-              onClick={closePricingModal}
+              onClick={handleModalClose}
               aria-label="Close"
             ></button>
           </div>
@@ -87,267 +160,369 @@ export default function PricingModal() {
           {/* Modal Body */}
           <div className="modal-body px-4 py-3">
             {feedbackMsg && (
-              <div className="alert alert-success d-flex align-items-center gap-2 rounded-3 py-2 px-3 mb-4">
-                <i className="bi bi-check-circle-fill"></i>
+              <div className="alert alert-info d-flex align-items-center gap-2 rounded-3 py-2 px-3 mb-3 small">
+                <i className="bi bi-info-circle-fill"></i>
                 <span>{feedbackMsg}</span>
               </div>
             )}
 
-            {/* Monthly / Annual Billing Toggle */}
-            <div className="d-flex justify-content-center mb-4">
-              <div
-                className="d-inline-flex p-1 rounded-pill bg-light border"
-                style={{ cursor: 'pointer' }}
-              >
-                <button
-                  type="button"
-                  className={`btn btn-sm rounded-pill px-4 fw-semibold ${
-                    interval === 'monthly' ? 'btn-white shadow-sm text-primary' : 'text-muted'
-                  }`}
-                  onClick={() => setInterval('monthly')}
-                >
-                  Monthly Billing
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm rounded-pill px-4 fw-semibold d-flex align-items-center gap-1 ${
-                    interval === 'annual' ? 'btn-primary shadow-sm text-white' : 'text-muted'
-                  }`}
-                  onClick={() => setInterval('annual')}
-                >
-                  <span>Annual Billing</span>
-                  <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
-                    Save 25%
+            {!showBuyForm ? (
+              /* ================= 2-TIER PRICING VIEW ================= */
+              <>
+                {/* Monthly / Annual Billing Toggle */}
+                <div className="d-flex justify-content-center mb-4">
+                  <div className="d-inline-flex p-1 rounded-pill bg-light border">
+                    <button
+                      type="button"
+                      className={`btn btn-sm rounded-pill px-4 fw-semibold ${
+                        interval === 'monthly' ? 'btn-white shadow-sm text-primary' : 'text-muted'
+                      }`}
+                      onClick={() => setInterval('monthly')}
+                    >
+                      Monthly ($2/mo)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm rounded-pill px-4 fw-semibold d-flex align-items-center gap-1 ${
+                        interval === 'annual' ? 'btn-primary shadow-sm text-white' : 'text-muted'
+                      }`}
+                      onClick={() => setInterval('annual')}
+                    >
+                      <span>Annual ($24/yr)</span>
+                      <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
+                        Best Value
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards Row: Starter Free vs SmartFinance PRO */}
+                <div className="row g-4 align-items-stretch justify-content-center">
+                  {/* 1. Starter Free */}
+                  <div className="col-md-6">
+                    <div
+                      className="card h-100 border rounded-4 p-4 d-flex flex-column shadow-sm"
+                      style={{ backgroundColor: '#ffffff' }}
+                    >
+                      <div className="mb-2">
+                        <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 mb-2">
+                          Free Forever
+                        </span>
+                        <h5 className="fw-bold text-dark mb-1">Starter</h5>
+                        <p className="text-muted small">Essential budgeting &amp; manual tracking.</p>
+                        <div className="d-flex align-items-baseline gap-1 my-3">
+                          <span className="display-5 fw-bold text-dark">$0</span>
+                          <span className="text-muted small">/ month</span>
+                        </div>
+                      </div>
+
+                      <hr className="my-2 opacity-10" />
+
+                      <ul className="list-unstyled d-flex flex-column gap-2 small my-3 flex-grow-1">
+                        <li className="d-flex align-items-center gap-2">
+                          <i className="bi bi-check2 text-success fw-bold"></i>
+                          <span>Manual expense &amp; income tracking</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2">
+                          <i className="bi bi-check2 text-success fw-bold"></i>
+                          <span>Monthly category budget limits</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2">
+                          <i className="bi bi-check2 text-success fw-bold"></i>
+                          <span>Up to 2 savings goals</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2">
+                          <i className="bi bi-check2 text-success fw-bold"></i>
+                          <span>3 AI receipt scans / month</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-muted">
+                          <i className="bi bi-x text-muted"></i>
+                          <span>Schedule C Tax Write-Offs</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-muted">
+                          <i className="bi bi-x text-muted"></i>
+                          <span>Audit-ready PDF tax statements</span>
+                        </li>
+                      </ul>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary rounded-pill py-2 fw-semibold w-100 mt-2"
+                        disabled={tier === 'free'}
+                        onClick={() => upgradePlan('free')}
+                      >
+                        {tier === 'free' ? 'Current Plan' : 'Use Free Plan'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. SmartFinance PRO */}
+                  <div className="col-md-6">
+                    <div
+                      className="card h-100 border-2 border-primary rounded-4 p-4 d-flex flex-column position-relative shadow-lg"
+                      style={{
+                        background: 'linear-gradient(180deg, #ffffff 0%, #eff6ff 100%)'
+                      }}
+                    >
+                      <div
+                        className="position-absolute top-0 start-50 translate-middle badge rounded-pill px-3 py-1 shadow-sm"
+                        style={{
+                          background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        ⭐ RECOMMENDED
+                      </div>
+
+                      <div className="mb-2">
+                        <span className="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 mb-2">
+                          Pro Individual &amp; Freelance
+                        </span>
+                        <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
+                        <p className="text-muted small">Automate tax write-offs, receipt scans &amp; strategy.</p>
+                        <div className="d-flex align-items-baseline gap-1 my-3">
+                          <span className="display-5 fw-bold text-primary">$2</span>
+                          <span className="text-muted small">
+                            / month {interval === 'annual' && '($24/year)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <hr className="my-2 opacity-10" />
+
+                      <ul className="list-unstyled d-flex flex-column gap-2 small my-3 flex-grow-1">
+                        <li className="d-flex align-items-center gap-2 fw-semibold text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span><strong>Schedule C Tax Deductions</strong></span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 fw-semibold text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span><strong>Unlimited</strong> AI receipt scans</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span>Audit-ready PDF tax statement export</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span>Unlimited savings goals &amp; budgets</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span>High-Yield Savings comparisons</span>
+                        </li>
+                        <li className="d-flex align-items-center gap-2 text-dark">
+                          <i className="bi bi-check-circle-fill text-primary"></i>
+                          <span>Priority support via admin@gmail.com</span>
+                        </li>
+                      </ul>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary rounded-pill py-2 fw-bold w-100 mt-2 shadow-sm d-flex align-items-center justify-content-center gap-2"
+                        style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
+                        disabled={tier === 'pro'}
+                        onClick={() => setShowBuyForm(true)}
+                      >
+                        {tier === 'pro' ? (
+                          <>
+                            <i className="bi bi-check-circle-fill"></i> PRO Active
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-rocket-takeoff-fill"></i> Buy PRO ($2/mo)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Trust Indicators */}
+                <div className="d-flex flex-wrap justify-content-center align-items-center gap-4 text-muted small mt-4 pt-2 border-top">
+                  <span className="d-flex align-items-center gap-1">
+                    <i className="bi bi-shield-check text-success"></i> Real-time MySQL Sync
                   </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Pricing Cards Grid */}
-            <div className="row g-4 align-items-stretch">
-              {/* 1. Starter Free */}
-              <div className="col-lg-4">
+                  <span className="d-flex align-items-center gap-1">
+                    <i className="bi bi-envelope-check text-primary"></i> Verified Admin: admin@gmail.com
+                  </span>
+                  <span className="d-flex align-items-center gap-1">
+                    <i className="bi bi-arrow-repeat text-info"></i> Cancel Anytime
+                  </span>
+                </div>
+              </>
+            ) : submittedSuccess ? (
+              /* ================= SUBMITTED SUCCESS VIEW ================= */
+              <div className="text-center py-4 px-3">
                 <div
-                  className="card h-100 border rounded-4 p-4 d-flex flex-column transition-all"
-                  style={{ backgroundColor: '#ffffff' }}
+                  className="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '64px', height: '64px' }}
                 >
-                  <div className="mb-3">
-                    <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 mb-2">
-                      Free Forever
-                    </span>
-                    <h5 className="fw-bold text-dark mb-1">Starter</h5>
-                    <p className="text-muted small">Essential budgeting & manual tracking.</p>
-                    <div className="d-flex align-items-baseline gap-1 my-3">
-                      <span className="display-6 fw-bold text-dark">$0</span>
-                      <span className="text-muted small">/ month</span>
-                    </div>
+                  <i className="bi bi-check2-circle fs-1"></i>
+                </div>
+                <h4 className="fw-bold text-dark mb-2">Upgrade Request Sent!</h4>
+                <p className="text-muted small mx-auto mb-4" style={{ maxWidth: '440px' }}>
+                  Your request for <strong>SmartFinance PRO ($2/month)</strong> has been recorded and directed to{' '}
+                  <strong className="text-dark">admin@gmail.com</strong>.
+                </p>
+
+                <div className="card bg-light border-0 rounded-4 p-3 mb-4 mx-auto text-start small" style={{ maxWidth: '420px' }}>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Name:</span>
+                    <strong className="text-dark">{buyFormData.name}</strong>
                   </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Email:</span>
+                    <strong className="text-dark">{buyFormData.email}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Plan:</span>
+                    <strong className="text-primary">SmartFinance PRO ($2/mo)</strong>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Payment:</span>
+                    <strong className="text-dark">{buyFormData.payment_method}</strong>
+                  </div>
+                </div>
 
-                  <hr className="my-2 opacity-10" />
-
-                  <ul className="list-unstyled d-flex flex-column gap-2 small my-3 flex-grow-1">
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Manual expense & income tracking</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>3 AI receipt scans / month</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Up to 2 savings goals</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Basic spending analytics</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 text-muted">
-                      <i className="bi bi-x text-muted"></i>
-                      <span>Schedule C Freelancer Tax Write-Offs</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 text-muted">
-                      <i className="bi bi-x text-muted"></i>
-                      <span>Audit-ready PDF tax statements</span>
-                    </li>
-                  </ul>
-
-                  <button
-                    className="btn btn-outline-secondary rounded-pill py-2 fw-semibold w-100 mt-3"
-                    disabled={tier === 'free'}
-                    onClick={() => handleUpgrade('free')}
+                <div className="d-flex flex-wrap justify-content-center gap-2">
+                  <a
+                    href={mailtoUrl}
+                    className="btn btn-outline-primary rounded-pill px-4 fw-semibold"
                   >
-                    {tier === 'free' ? 'Current Plan' : 'Downgrade to Free'}
+                    <i className="bi bi-envelope-fill me-1"></i> Open Email to admin@gmail.com
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-success rounded-pill px-4 fw-bold shadow-sm"
+                    onClick={handleInstantDemoActivate}
+                    disabled={upgradingTier === 'pro'}
+                  >
+                    {upgradingTier === 'pro' ? 'Activating...' : 'Instant Activate PRO (Demo)'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-light rounded-pill px-4"
+                    onClick={handleModalClose}
+                  >
+                    Done
                   </button>
                 </div>
               </div>
-
-              {/* 2. SmartFinance PRO (Featured) */}
-              <div className="col-lg-4">
+            ) : (
+              /* ================= BUY / REQUEST FORM VIEW ================= */
+              <form onSubmit={handleBuyFormSubmit} className="py-2">
                 <div
-                  className="card h-100 border-2 border-primary rounded-4 p-4 d-flex flex-column position-relative shadow-lg"
-                  style={{
-                    background: 'linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%)'
-                  }}
+                  className="p-3 rounded-4 mb-4 text-white d-flex justify-content-between align-items-center"
+                  style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
                 >
-                  <div
-                    className="position-absolute top-0 start-50 translate-middle badge rounded-pill px-3 py-1 shadow-sm"
-                    style={{
-                      background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700
-                    }}
-                  >
-                    ⭐ MOST POPULAR
-                  </div>
-
-                  <div className="mb-3">
-                    <span className="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 mb-2">
-                      Pro Individual & Freelancer
+                  <div>
+                    <span className="badge bg-warning text-dark rounded-pill px-2 py-1 small fw-bold mb-1">
+                      SELECTED PLAN
                     </span>
-                    <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
-                    <p className="text-muted small">Automate finances, scan receipts & maximize tax write-offs.</p>
-                    <div className="d-flex align-items-baseline gap-1 my-3">
-                      <span className="display-6 fw-bold text-primary">
-                        ${interval === 'annual' ? '5.75' : '7.99'}
-                      </span>
-                      <span className="text-muted small">
-                        / month {interval === 'annual' && '(billed $69/yr)'}
-                      </span>
-                    </div>
+                    <h5 className="fw-bold mb-0">SmartFinance PRO</h5>
+                    <div className="small text-white-50">Unlimited AI scans &amp; Schedule C write-offs</div>
+                  </div>
+                  <div className="text-end">
+                    <div className="fs-3 fw-bold">$2</div>
+                    <div className="small text-white-50">/ month</div>
+                  </div>
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label className="form-label small fw-semibold text-dark">Your Name</label>
+                    <input
+                      type="text"
+                      required
+                      className="form-control bg-light"
+                      placeholder="Enter your name"
+                      value={buyFormData.name}
+                      onChange={(e) => setBuyFormData({ ...buyFormData, name: e.target.value })}
+                    />
                   </div>
 
-                  <hr className="my-2 opacity-10" />
-
-                  <ul className="list-unstyled d-flex flex-column gap-2 small my-3 flex-grow-1">
-                    <li className="d-flex align-items-center gap-2 fw-medium text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span><strong>Unlimited</strong> AI receipt OCR scanning</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 fw-medium text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span><strong>Schedule C Tax Deductions</strong> & Write-Offs</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 fw-medium text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span>Audit-ready PDF statement exports</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span>Unlimited savings goals & custom budgets</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span>High-Yield Savings affiliate comparisons</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2 text-dark">
-                      <i className="bi bi-check-circle-fill text-primary"></i>
-                      <span>Priority cloud sync & data backup</span>
-                    </li>
-                  </ul>
-
-                  <button
-                    className="btn btn-primary rounded-pill py-2 fw-semibold w-100 mt-3 shadow-sm d-flex align-items-center justify-content-center gap-2"
-                    disabled={tier === 'pro' || isLoading}
-                    onClick={() => handleUpgrade('pro')}
-                  >
-                    {upgradingTier === 'pro' ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm" role="status"></span>
-                        Activating Pro...
-                      </>
-                    ) : tier === 'pro' ? (
-                      <>
-                        <i className="bi bi-check2-circle"></i> Active Plan
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-rocket-takeoff-fill"></i> Upgrade to PRO
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* 3. Advisor & Accountant Suite */}
-              <div className="col-lg-4">
-                <div
-                  className="card h-100 border rounded-4 p-4 d-flex flex-column transition-all"
-                  style={{ backgroundColor: '#ffffff' }}
-                >
-                  <div className="mb-3">
-                    <span className="badge bg-purple-subtle text-purple rounded-pill px-3 py-1 mb-2" style={{ backgroundColor: '#ede9fe', color: '#6d28d9' }}>
-                      CPA & Wealth Coaches
-                    </span>
-                    <h5 className="fw-bold text-dark mb-1">Advisor Suite</h5>
-                    <p className="text-muted small">White-label portal to manage multiple client portfolios.</p>
-                    <div className="d-flex align-items-baseline gap-1 my-3">
-                      <span className="display-6 fw-bold text-dark">
-                        ${interval === 'annual' ? '20.75' : '29.99'}
-                      </span>
-                      <span className="text-muted small">
-                        / month {interval === 'annual' && '(billed $249/yr)'}
-                      </span>
-                    </div>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-semibold text-dark">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      className="form-control bg-light"
+                      placeholder="name@example.com"
+                      value={buyFormData.email}
+                      onChange={(e) => setBuyFormData({ ...buyFormData, email: e.target.value })}
+                    />
                   </div>
 
-                  <hr className="my-2 opacity-10" />
+                  <div className="col-12">
+                    <label className="form-label small fw-semibold text-dark">Preferred Payment Method</label>
+                    <select
+                      className="form-select bg-light"
+                      value={buyFormData.payment_method}
+                      onChange={(e) => setBuyFormData({ ...buyFormData, payment_method: e.target.value })}
+                    >
+                      <option value="ABA Pay / KHQR">ABA Pay (KHQR Scan)</option>
+                      <option value="Bakong App">Bakong Wallet / QR</option>
+                      <option value="Bank Transfer">Direct Bank Transfer</option>
+                      <option value="Credit / Debit Card">Credit / Debit Card</option>
+                      <option value="Cash / Other">Cash / Direct Settlement</option>
+                    </select>
+                  </div>
 
-                  <ul className="list-unstyled d-flex flex-column gap-2 small my-3 flex-grow-1">
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span><strong>Everything</strong> in SmartFinance PRO</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Multi-client management portal</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>White-label brand & custom domain ready</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Direct accountant export (QBO/Xero)</span>
-                    </li>
-                    <li className="d-flex align-items-center gap-2">
-                      <i className="bi bi-check2 text-success fw-bold"></i>
-                      <span>Client milestone & savings audit logs</span>
-                    </li>
-                  </ul>
-
-                  <button
-                    className="btn btn-outline-dark rounded-pill py-2 fw-semibold w-100 mt-3"
-                    disabled={tier === 'enterprise' || isLoading}
-                    onClick={() => handleUpgrade('enterprise')}
-                  >
-                    {upgradingTier === 'enterprise' ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm" role="status"></span>
-                        Activating...
-                      </>
-                    ) : tier === 'enterprise' ? (
-                      'Active Plan'
-                    ) : (
-                      'Upgrade to Advisor'
-                    )}
-                  </button>
+                  <div className="col-12">
+                    <label className="form-label small fw-semibold text-dark">
+                      Message / Note to Admin (admin@gmail.com)
+                    </label>
+                    <textarea
+                      rows="2"
+                      className="form-control bg-light"
+                      placeholder="Optional: Enter your transaction reference or any message to admin..."
+                      value={buyFormData.message}
+                      onChange={(e) => setBuyFormData({ ...buyFormData, message: e.target.value })}
+                    ></textarea>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Bottom Trust Row */}
-            <div className="d-flex flex-wrap justify-content-center align-items-center gap-4 text-muted small mt-4 pt-2 border-top">
-              <span className="d-flex align-items-center gap-1">
-                <i className="bi bi-shield-lock text-success"></i> 256-Bit Bank Grade SSL
-              </span>
-              <span className="d-flex align-items-center gap-1">
-                <i className="bi bi-arrow-repeat text-primary"></i> 14-Day Money-Back Guarantee
-              </span>
-              <span className="d-flex align-items-center gap-1">
-                <i className="bi bi-credit-card"></i> Powered by Stripe Verified Checkout
-              </span>
-            </div>
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 pt-2 border-top">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary rounded-pill px-3 py-2 small"
+                    onClick={() => setShowBuyForm(false)}
+                  >
+                    <i className="bi bi-arrow-left me-1"></i> Back to Plans
+                  </button>
+
+                  <div className="d-flex gap-2">
+                    <a
+                      href={mailtoUrl}
+                      className="btn btn-outline-primary rounded-pill px-3 py-2 small fw-semibold"
+                    >
+                      <i className="bi bi-envelope me-1"></i> Open Email Client
+                    </a>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status"></span>
+                          <span>Sending Request...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-send-fill"></i>
+                          <span>Send Request to Admin</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>

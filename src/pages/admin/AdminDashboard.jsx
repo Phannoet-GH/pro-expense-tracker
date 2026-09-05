@@ -171,8 +171,8 @@ export default function AdminDashboard() {
                     <i className="bi bi-people"></i>
                   </span>
                   <div>
-                    <strong className="d-block small text-dark">User Account Governance</strong>
-                    <span className="text-muted" style={{ fontSize: '11px' }}>Manage user status, activations, and account deletions</span>
+                    <strong className="d-block small text-dark">User Accounts &amp; PRO Inquiries</strong>
+                    <span className="text-muted" style={{ fontSize: '11px' }}>Manage user accounts, review PRO upgrade requests, and approvals</span>
                   </div>
                 </div>
                 <i className="bi bi-chevron-right text-muted"></i>

@@ -192,7 +192,7 @@ export default function LandingPage() {
                     </div>
                     <div className="d-flex justify-content-between small text-white-50">
                       <span>SmartFinance PRO Cost:</span>
-                      <span className="text-warning">$69.00 / year</span>
+                      <span className="text-warning">$2.00 / month ($24 / year)</span>
                     </div>
                   </div>
 
@@ -315,32 +315,36 @@ export default function LandingPage() {
             Built for modern budgeting, multi-currency tracking, savings optimization, and administrative control.
           </p>
 
-          <div className="row g-4 align-items-stretch justify-content-center text-start" style={{ maxWidth: '980px', margin: '0 auto' }}>
+          <div className="row g-4 align-items-stretch justify-content-center text-start" style={{ maxWidth: '820px', margin: '0 auto' }}>
             {/* Standard Client */}
-            <div className="col-lg-4">
-              <div className="card h-100 border rounded-4 p-4 bg-white d-flex flex-column">
-                <h5 className="fw-bold text-dark mb-1">Standard Client</h5>
+            <div className="col-md-6">
+              <div className="card h-100 border rounded-4 p-4 bg-white d-flex flex-column shadow-sm">
+                <span className="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 mb-2 align-self-start small">
+                  Free Forever
+                </span>
+                <h5 className="fw-bold text-dark mb-1">Starter Client</h5>
                 <p className="text-muted small">Essential budgeting &amp; transaction tracking.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-dark">Free</span>
-                  <span className="text-muted small">/ always</span>
+                  <span className="display-6 fw-bold text-dark">$0</span>
+                  <span className="text-muted small">/ month</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
                   <li><i className="bi bi-check2 text-success me-2"></i> Income &amp; expense tracking</li>
                   <li><i className="bi bi-check2 text-success me-2"></i> Monthly budget category limits</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Unlimited savings goals</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> Up to 2 savings goals</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> 3 AI receipt scans / month</li>
                   <li><i className="bi bi-check2 text-success me-2"></i> Dark &amp; Light mode toggle</li>
                   <li><i className="bi bi-check2 text-success me-2"></i> Multi-currency (USD &amp; KHR)</li>
                 </ul>
                 <Link to="/auth" className="btn btn-outline-secondary rounded-pill w-100 py-2 fw-semibold">
-                  Create Account
+                  Get Started Free
                 </Link>
               </div>
             </div>
 
-            {/* Pro Suite */}
-            <div className="col-lg-4">
+            {/* SmartFinance PRO */}
+            <div className="col-md-6">
               <div
                 className="card h-100 border-2 border-primary rounded-4 p-4 shadow-lg position-relative d-flex flex-column"
                 style={{ background: 'linear-gradient(180deg, #ffffff 0%, #eff6ff 100%)' }}
@@ -351,51 +355,43 @@ export default function LandingPage() {
                 >
                   RECOMMENDED
                 </div>
+                <span className="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 mb-2 align-self-start small">
+                  Pro Personal &amp; Freelance
+                </span>
                 <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
-                <p className="text-muted small">Full tax analytics &amp; savings strategy.</p>
+                <p className="text-muted small">Full tax write-offs, receipt scans &amp; strategy.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-primary">All-In</span>
-                  <span className="text-muted small">/ full suite</span>
+                  <span className="display-6 fw-bold text-primary">$2</span>
+                  <span className="text-muted small">/ month ($24/year)</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> <strong>Schedule C Tax Deductions</strong></li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> <strong>Schedule C Tax Write-Offs</strong></li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> <strong>Unlimited</strong> AI receipt OCR scans</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Audit-ready PDF tax statement export</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Unlimited savings goals &amp; custom budgets</li>
                   <li><i className="bi bi-check-circle-fill text-primary me-2"></i> High-Yield Savings comparisons</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Interactive ROI &amp; tax simulator</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> English &amp; Khmer (ភាសាខ្មែរ)</li>
-                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Cloud MySQL synchronization</li>
+                  <li><i className="bi bi-check-circle-fill text-primary me-2"></i> Real-time Cloud MySQL synchronization</li>
                 </ul>
                 <Link
                   to="/auth"
                   className="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
                 >
-                  Open Dashboard
+                  Upgrade to PRO ($2/mo)
                 </Link>
               </div>
             </div>
+          </div>
 
-            {/* Administrator */}
-            <div className="col-lg-4">
-              <div className="card h-100 border rounded-4 p-4 bg-white d-flex flex-column">
-                <h5 className="fw-bold text-dark mb-1">Administrator</h5>
-                <p className="text-muted small">User &amp; platform management.</p>
-                <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-dark">Admin</span>
-                  <span className="text-muted small">/ role</span>
-                </div>
-                <hr className="opacity-10 my-2" />
-                <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
-                  <li><i className="bi bi-check2 text-success me-2"></i> User accounts directory</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Role management (Admin / Client)</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Account status control</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> System diagnostics &amp; backup</li>
-                </ul>
-                <Link to="/auth" className="btn btn-outline-dark rounded-pill w-100 py-2 fw-semibold">
-                  Admin Sign In
-                </Link>
-              </div>
-            </div>
+          {/* Separate Admin Portal Link */}
+          <div className="text-center mt-4 pt-2">
+            <span className="text-muted small">
+              Platform Administrator?{' '}
+              <Link to="/auth" className="text-primary fw-semibold text-decoration-none ms-1">
+                Sign in to Admin Console <i className="bi bi-arrow-right"></i>
+              </Link>
+            </span>
           </div>
         </div>
       </section>

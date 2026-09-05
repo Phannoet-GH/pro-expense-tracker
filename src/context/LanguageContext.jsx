@@ -18,7 +18,7 @@ export const translations = {
     activeMember: 'Active Member',
     upgradeToPro: 'UPGRADE TO PRO',
     unlimitedScans: 'Unlimited Scans & Tax Suite',
-    getPro: 'Get PRO ($2/mo)',
+    getPro: 'Get PRO ($1/mo)',
     advisorPlan: 'ADVISOR PLAN',
     proSuiteActive: 'PRO SUITE ACTIVE',
 
@@ -83,7 +83,7 @@ export const translations = {
     activeMember: 'សមាជិកសកម្ម',
     upgradeToPro: 'ធ្វើឱ្យប្រសើរជា PRO',
     unlimitedScans: 'ស្កែនគ្មានដែនកំណត់',
-    getPro: 'ទទួល PRO ($2/ខែ)',
+    getPro: 'ទទួល PRO ($1/ខែ)',
     advisorPlan: 'គម្រោងអ្នកប្រឹក្សា',
     proSuiteActive: 'PRO សកម្ម',
 

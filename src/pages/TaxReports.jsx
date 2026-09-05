@@ -238,7 +238,7 @@ export default function TaxReports() {
                 onClick={() => openPricingModal('Schedule C Tax Deductions')}
               >
                 <i className="bi bi-lightning-charge-fill"></i>
-                Upgrade to PRO ($2/mo)
+                Upgrade to PRO ($1/mo)
               </button>
             </div>
           </div>

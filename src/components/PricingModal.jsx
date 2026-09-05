@@ -16,7 +16,6 @@ export default function PricingModal() {
   const { currentUser, token } = useContext(UserContext) || {};
 
   const [interval, setInterval] = useState('monthly'); // 'monthly' | 'annual'
-  const [upgradingTier, setUpgradingTier] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState('');
   
   // Buy / Request Form State
@@ -53,7 +52,7 @@ export default function PricingModal() {
           payment_method: buyFormData.payment_method,
           message: buyFormData.message,
           plan: 'pro',
-          price: interval === 'annual' ? '$24/year ($2/mo)' : '$2/month'
+          price: interval === 'annual' ? '$5/year ($5/y)' : '$1/month ($1/m)'
         })
       });
 
@@ -68,40 +67,12 @@ export default function PricingModal() {
     }
   };
 
-  // Instant demo activation toggle
-  const handleInstantDemoActivate = async () => {
-    setUpgradingTier('pro');
-    setFeedbackMsg('');
-    const res = await upgradePlan('pro');
-    if (res.success) {
-      setFeedbackMsg('PRO plan activated for this session!');
-      setTimeout(() => {
-        closePricingModal();
-        setShowBuyForm(false);
-        setSubmittedSuccess(false);
-      }, 1200);
-    } else {
-      setFeedbackMsg(res.error || 'Activation failed');
-      setUpgradingTier(null);
-    }
-  };
-
   const handleModalClose = () => {
     closePricingModal();
     setShowBuyForm(false);
     setSubmittedSuccess(false);
     setFeedbackMsg('');
   };
-
-  const mailtoUrl = `mailto:admin@gmail.com?subject=${encodeURIComponent(
-    'SmartFinance PRO Upgrade Request ($2/mo)'
-  )}&body=${encodeURIComponent(
-    `Hello Administrator,\n\nI would like to upgrade my account to SmartFinance PRO ($2/month).\n\nName: ${
-      buyFormData.name || currentUser?.name || ''
-    }\nEmail: ${buyFormData.email || currentUser?.email || ''}\nPayment Preference: ${
-      buyFormData.payment_method
-    }\nNote: ${buyFormData.message || 'Ready to upgrade'}\n\nThank you!`
-  )}`;
 
   return (
     <div
@@ -146,7 +117,7 @@ export default function PricingModal() {
               <p className="text-muted small mb-0">
                 {showBuyForm
                   ? 'Request will be sent to Admin (admin@gmail.com) for quick verification.'
-                  : 'Start free or get full tax deduction features for only $2/month.'}
+                  : 'Start free or get full tax deduction features for only $1/month or $5/year.'}
               </p>
             </div>
             <button
@@ -179,7 +150,7 @@ export default function PricingModal() {
                       }`}
                       onClick={() => setInterval('monthly')}
                     >
-                      Monthly ($2/mo)
+                      Monthly ($1/mo)
                     </button>
                     <button
                       type="button"
@@ -188,7 +159,7 @@ export default function PricingModal() {
                       }`}
                       onClick={() => setInterval('annual')}
                     >
-                      <span>Annual ($24/yr)</span>
+                      <span>Annual ($5/yr)</span>
                       <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.65rem' }}>
                         Best Value
                       </span>
@@ -282,9 +253,11 @@ export default function PricingModal() {
                         <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
                         <p className="text-muted small">Automate tax write-offs, receipt scans &amp; strategy.</p>
                         <div className="d-flex align-items-baseline gap-1 my-3">
-                          <span className="display-5 fw-bold text-primary">$2</span>
+                          <span className="display-5 fw-bold text-primary">
+                            {interval === 'annual' ? '$5' : '$1'}
+                          </span>
                           <span className="text-muted small">
-                            / month {interval === 'annual' && '($24/year)'}
+                            {interval === 'annual' ? '/ year ($5/y)' : '/ month ($1/m)'}
                           </span>
                         </div>
                       </div>
@@ -331,7 +304,7 @@ export default function PricingModal() {
                           </>
                         ) : (
                           <>
-                            <i className="bi bi-rocket-takeoff-fill"></i> Buy PRO ($2/mo)
+                            <i className="bi bi-rocket-takeoff-fill"></i> {interval === 'annual' ? 'Buy PRO ($5/y)' : 'Buy PRO ($1/m)'}
                           </>
                         )}
                       </button>
@@ -363,7 +336,7 @@ export default function PricingModal() {
                 </div>
                 <h4 className="fw-bold text-dark mb-2">Upgrade Request Sent!</h4>
                 <p className="text-muted small mx-auto mb-4" style={{ maxWidth: '440px' }}>
-                  Your request for <strong>SmartFinance PRO ($2/month)</strong> has been recorded and directed to{' '}
+                  Your request for <strong>SmartFinance PRO ({interval === 'annual' ? '$5/year' : '$1/month'})</strong> has been recorded and directed to{' '}
                   <strong className="text-dark">admin@gmail.com</strong>.
                 </p>
 
@@ -378,7 +351,7 @@ export default function PricingModal() {
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Plan:</span>
-                    <strong className="text-primary">SmartFinance PRO ($2/mo)</strong>
+                    <strong className="text-primary">SmartFinance PRO ({interval === 'annual' ? '$5/yr' : '$1/mo'})</strong>
                   </div>
                   <div className="d-flex justify-content-between">
                     <span className="text-muted">Payment:</span>
@@ -386,24 +359,10 @@ export default function PricingModal() {
                   </div>
                 </div>
 
-                <div className="d-flex flex-wrap justify-content-center gap-2">
-                  <a
-                    href={mailtoUrl}
-                    className="btn btn-outline-primary rounded-pill px-4 fw-semibold"
-                  >
-                    <i className="bi bi-envelope-fill me-1"></i> Open Email to admin@gmail.com
-                  </a>
+                <div className="d-flex justify-content-center">
                   <button
                     type="button"
-                    className="btn btn-success rounded-pill px-4 fw-bold shadow-sm"
-                    onClick={handleInstantDemoActivate}
-                    disabled={upgradingTier === 'pro'}
-                  >
-                    {upgradingTier === 'pro' ? 'Activating...' : 'Instant Activate PRO (Demo)'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-light rounded-pill px-4"
+                    className="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm"
                     onClick={handleModalClose}
                   >
                     Done
@@ -425,8 +384,8 @@ export default function PricingModal() {
                     <div className="small text-white-50">Unlimited AI scans &amp; Schedule C write-offs</div>
                   </div>
                   <div className="text-end">
-                    <div className="fs-3 fw-bold">$2</div>
-                    <div className="small text-white-50">/ month</div>
+                    <div className="fs-3 fw-bold">{interval === 'annual' ? '$5' : '$1'}</div>
+                    <div className="small text-white-50">{interval === 'annual' ? '/ year' : '/ month'}</div>
                   </div>
                 </div>
 
@@ -484,7 +443,7 @@ export default function PricingModal() {
                   </div>
                 </div>
 
-                <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 pt-2 border-top">
+                <div className="d-flex justify-content-between align-items-center gap-2 mt-4 pt-2 border-top">
                   <button
                     type="button"
                     className="btn btn-outline-secondary rounded-pill px-3 py-2 small"
@@ -493,33 +452,24 @@ export default function PricingModal() {
                     <i className="bi bi-arrow-left me-1"></i> Back to Plans
                   </button>
 
-                  <div className="d-flex gap-2">
-                    <a
-                      href={mailtoUrl}
-                      className="btn btn-outline-primary rounded-pill px-3 py-2 small fw-semibold"
-                    >
-                      <i className="bi bi-envelope me-1"></i> Open Email Client
-                    </a>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2"
-                      style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm" role="status"></span>
-                          <span>Sending Request...</span>
-                        </>
-                      ) : (
-                        <>
-                          <i className="bi bi-send-fill"></i>
-                          <span>Send Request to Admin</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2"
+                    style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status"></span>
+                        <span>Sending Request...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-send-fill"></i>
+                        <span>Send Request to Admin</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </form>
             )}

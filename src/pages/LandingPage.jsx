@@ -192,7 +192,7 @@ export default function LandingPage() {
                     </div>
                     <div className="d-flex justify-content-between small text-white-50">
                       <span>SmartFinance PRO Cost:</span>
-                      <span className="text-warning">$2.00 / month ($24 / year)</span>
+                      <span className="text-warning">$1.00 / month ($5.00 / year)</span>
                     </div>
                   </div>
 
@@ -361,8 +361,8 @@ export default function LandingPage() {
                 <h5 className="fw-bold text-dark mb-1">SmartFinance PRO</h5>
                 <p className="text-muted small">Full tax write-offs, receipt scans &amp; strategy.</p>
                 <div className="d-flex align-items-baseline gap-1 my-3">
-                  <span className="display-6 fw-bold text-primary">$2</span>
-                  <span className="text-muted small">/ month ($24/year)</span>
+                  <span className="display-6 fw-bold text-primary">$1</span>
+                  <span className="text-muted small">/ month ($5/year)</span>
                 </div>
                 <hr className="opacity-10 my-2" />
                 <ul className="list-unstyled small d-flex flex-column gap-2 my-3 flex-grow-1">
@@ -378,7 +378,7 @@ export default function LandingPage() {
                   className="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}
                 >
-                  Upgrade to PRO ($2/mo)
+                  Upgrade to PRO ($1/mo)
                 </Link>
               </div>
             </div>

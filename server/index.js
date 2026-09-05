@@ -366,8 +366,8 @@ const PRICING_PLANS = {
   pro: {
     id: 'pro',
     name: 'SmartFinance PRO',
-    priceMonthly: 2.00,
-    priceAnnual: 24.00,
+    priceMonthly: 1.00,
+    priceAnnual: 5.00,
     scansPerMonth: 'unlimited',
     maxGoals: 'unlimited',
     features: [
@@ -446,7 +446,7 @@ app.post('/api/billing/upgrade-test', authMiddleware, async (req, res) => {
 // POST /api/billing/upgrade-request (User submits PRO purchase/upgrade request directed to admin gmail)
 app.post('/api/billing/upgrade-request', async (req, res) => {
   try {
-    const { name, email, payment_method, message, plan = 'pro', price = '$2/mo' } = req.body;
+    const { name, email, payment_method, message, plan = 'pro', price = '$1/mo' } = req.body;
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required' });
     }
@@ -471,7 +471,7 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       [requestId, userId, name, email, plan, price, payment_method || 'Standard Inquiry', message || '']
     );
 
-    console.log(`📩 [PRO Upgrade Request] Received from ${name} (${email}) for admin@gmail.com. Method: ${payment_method}, Msg: ${message}`);
+    console.log(`📩 [PRO Upgrade Request] Received from ${name} (${email}) for admin@gmail.com. Price: ${price}, Method: ${payment_method}, Msg: ${message}`);
 
     res.json({
       success: true,

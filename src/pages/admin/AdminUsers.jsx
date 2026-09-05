@@ -179,7 +179,7 @@ export default function AdminUsers() {
               </span>
             </h5>
             <p className="text-muted small mb-0">
-              Users requesting SmartFinance PRO ($2/mo). Review and activate with one click.
+              Users requesting SmartFinance PRO ($1/mo, $5/yr). Review and activate with one click.
             </p>
           </div>
           <button
@@ -341,7 +341,7 @@ export default function AdminUsers() {
                     </td>
                     <td>
                       <span className={`badge rounded-pill ${user.plan_tier === 'pro' || user.role === 'admin' ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary'}`}>
-                        {user.role === 'admin' ? 'Admin Suite' : user.plan_tier === 'pro' ? 'PRO ($2/mo)' : 'Free'}
+                        {user.role === 'admin' ? 'Admin Suite' : user.plan_tier === 'pro' ? 'PRO ($1/mo)' : 'Free'}
                       </span>
                     </td>
                     <td>

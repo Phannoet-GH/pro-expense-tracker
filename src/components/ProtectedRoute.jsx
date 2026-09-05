@@ -28,15 +28,10 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
           </div>
           <h4 className="fw-bold text-dark mb-2">Access Denied</h4>
           <p className="text-muted small mb-4">
-            You are signed in as <strong>{currentUser?.email}</strong> with a <strong>Standard Client</strong> role.
-            The Admin Console is restricted to Super Administrators for platform infrastructure management.
+            The Admin Console is restricted to administrators.
           </p>
-          <div className="p-3 bg-light rounded-3 text-start small text-muted mb-4 border">
-            <i className="bi bi-shield-lock-fill text-success me-2"></i>
-            <strong>Zero-Knowledge Privacy:</strong> Administrators do not have access to view or alter your private personal financial accounts.
-          </div>
           <Link to="/dashboard" className="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
-            <i className="bi bi-arrow-left me-1"></i> Return to Personal Dashboard
+            <i className="bi bi-arrow-left me-1"></i> Return to Dashboard
           </Link>
         </div>
       </div>

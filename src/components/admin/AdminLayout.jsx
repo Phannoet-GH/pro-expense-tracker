@@ -94,9 +94,6 @@ export default function AdminLayout() {
                 <div className="text-secondary text-truncate" style={{ fontSize: '10px' }}>{currentUser?.email}</div>
               </div>
             </div>
-            <div className="small text-success d-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
-              <i className="bi bi-shield-check"></i> Zero-Knowledge Mode Active
-            </div>
           </div>
 
           <div className="d-flex flex-column gap-2">
@@ -126,10 +123,6 @@ export default function AdminLayout() {
           <div className="d-flex align-items-center flex-wrap gap-2">
             <span className="badge bg-danger text-white px-2 py-1 rounded fw-bold text-uppercase" style={{ fontSize: '11px' }}>
               Super Admin Console
-            </span>
-            <span className="text-muted small">|</span>
-            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
-              <i className="bi bi-shield-lock-fill me-1"></i>Client Data Isolated &amp; Private
             </span>
           </div>
 

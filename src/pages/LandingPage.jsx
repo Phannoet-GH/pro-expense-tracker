@@ -104,7 +104,7 @@ export default function LandingPage() {
 
           <div className="d-flex flex-wrap justify-content-center align-items-center gap-4 text-muted small">
             <span><i className="bi bi-check2-circle text-success me-1"></i> No Credit Card Required</span>
-            <span><i className="bi bi-check2-circle text-success me-1"></i> 100% Private &amp; Encrypted</span>
+            <span><i className="bi bi-check2-circle text-success me-1"></i> Free &amp; Private</span>
             <span><i className="bi bi-check2-circle text-success me-1"></i> Instant Setup in 60s</span>
           </div>
         </div>
@@ -292,11 +292,11 @@ export default function LandingPage() {
             <div className="col-md-4">
               <div className="card h-100 border-0 rounded-4 p-4 shadow-sm bg-light">
                 <div className="p-3 rounded-3 bg-dark text-white d-inline-flex mb-3 align-self-start">
-                  <i className="bi bi-shield-lock-fill fs-4"></i>
+                  <i className="bi bi-person-check-fill fs-4"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Bank-Level Security &amp; Isolation</h5>
+                <h5 className="fw-bold text-dark mb-2">Private Account Isolation</h5>
                 <p className="text-muted small mb-0">
-                  Bcrypt password hashing, token-based authorization, and isolated database records keep your confidential cash data 100% private.
+                  Your expenses, incomes, and savings goals are stored privately in your personal account with complete data separation.
                 </p>
               </div>
             </div>
@@ -389,7 +389,7 @@ export default function LandingPage() {
                   <li><i className="bi bi-check2 text-success me-2"></i> User accounts directory</li>
                   <li><i className="bi bi-check2 text-success me-2"></i> Role management (Admin / Client)</li>
                   <li><i className="bi bi-check2 text-success me-2"></i> Account status control</li>
-                  <li><i className="bi bi-check2 text-success me-2"></i> Security &amp; Rate-limiting guards</li>
+                  <li><i className="bi bi-check2 text-success me-2"></i> System diagnostics &amp; backup</li>
                 </ul>
                 <Link to="/auth" className="btn btn-outline-dark rounded-pill w-100 py-2 fw-semibold">
                   Admin Sign In
@@ -422,11 +422,11 @@ export default function LandingPage() {
               <div className="card h-100 border-0 rounded-4 p-4 shadow-sm bg-light">
                 <div className="text-warning mb-2">★★★★★</div>
                 <p className="small text-muted mb-3">
-                  "The 50/30/20 auto-planner actually works. Whenever I overspend on dining out, it dynamically adjusts my buffer without me having to recalculate anything."
+                  "The emergency fund calculator and high-yield savings guides helped me build a 6-month safety net in record time."
                 </p>
                 <div className="d-flex align-items-center gap-2">
                   <div className="fw-bold small text-dark">Marcus Brody</div>
-                  <span className="text-muted" style={{ fontSize: '11px' }}>• Software Architect</span>
+                  <span className="text-muted" style={{ fontSize: '11px' }}>• Independent Consultant</span>
                 </div>
               </div>
             </div>
@@ -435,11 +435,11 @@ export default function LandingPage() {
               <div className="card h-100 border-0 rounded-4 p-4 shadow-sm bg-light">
                 <div className="text-warning mb-2">★★★★★</div>
                 <p className="small text-muted mb-3">
-                  "I onboarded 8 coaching clients to the Advisor portal. Being able to see their actual savings rate and milestone progress in real-time is invaluable."
+                  "The dark mode and Khmer language toggle are super convenient. Extremely clean and straightforward to use."
                 </p>
                 <div className="d-flex align-items-center gap-2">
-                  <div className="fw-bold small text-dark">Marcus Sterling</div>
-                  <span className="text-muted" style={{ fontSize: '11px' }}>• Wealth Strategist</span>
+                  <div className="fw-bold small text-dark">Elena Rostova</div>
+                  <span className="text-muted" style={{ fontSize: '11px' }}>• Fullstack Developer</span>
                 </div>
               </div>
             </div>
@@ -451,7 +451,7 @@ export default function LandingPage() {
       <footer className="mt-auto py-4 bg-dark text-white border-top border-secondary border-opacity-25">
         <div className="container px-lg-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div className="small text-secondary">
-            &copy; {new Date().getFullYear()} SmartFinance PRO. All rights reserved. Bank-grade 256-bit SSL encrypted.
+            &copy; {new Date().getFullYear()} SmartFinance PRO. All rights reserved. Personal finance management platform.
           </div>
           <div className="d-flex gap-3 small text-secondary">
             <Link to="/auth" className="text-secondary text-decoration-none">Sign In</Link>

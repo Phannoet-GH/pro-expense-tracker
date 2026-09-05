@@ -127,18 +127,6 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {/* Zero-Knowledge Privacy Notice Banner */}
-      <div className="alert alert-success border-0 shadow-sm rounded-4 mb-4 p-3 d-flex align-items-center gap-3">
-        <span className="p-2 bg-success text-white rounded-circle flex-shrink-0">
-          <i className="bi bi-shield-check fs-5"></i>
-        </span>
-        <div className="small">
-          <strong className="d-block text-success-emphasis">Zero-Knowledge Financial Privacy Enforced</strong>
-          <span className="text-success-emphasis text-opacity-75">
-            By system design, administrators cannot view client transactions, incomes, expenses, or private balances, and cannot impersonate client sessions. Each user's financial ledger is strictly isolated to their own authenticated session.
-          </span>
-        </div>
-      </div>
 
       {/* Search & Filter Bar */}
       <div className="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">

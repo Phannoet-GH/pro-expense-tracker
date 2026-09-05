@@ -38,10 +38,10 @@ export default function AdminDashboard() {
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h2 className="fs-4 fw-bold text-dark mb-1">
-            <i className="bi bi-shield-check text-primary me-2"></i>Platform Infrastructure Console
+            <i className="bi bi-speedometer2 text-primary me-2"></i>Platform Infrastructure Console
           </h2>
           <p className="text-muted small mb-0">
-            System uptime, service telemetry, and account governance with zero-knowledge financial privacy.
+            System uptime, service telemetry, and account governance.
           </p>
         </div>
 
@@ -52,21 +52,6 @@ export default function AdminDashboard() {
           <i className="bi bi-arrow-clockwise"></i>
           <span>Refresh Telemetry</span>
         </button>
-      </div>
-
-      {/* Zero-Knowledge Privacy Callout */}
-      <div className="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4 border-start border-success border-4">
-        <div className="d-flex align-items-center gap-3">
-          <div className="p-3 bg-success bg-opacity-10 text-success rounded-circle">
-            <i className="bi bi-shield-lock-fill fs-3"></i>
-          </div>
-          <div>
-            <h5 className="fw-bold text-dark mb-1">Zero-Knowledge Financial Security Active</h5>
-            <p className="text-muted small mb-0">
-              Each user's income streams, expenses, and savings goals are strictly encrypted and isolated. As a Super Administrator, you manage platform availability and account governance without inspecting or accessing client financial ledgers.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* 4 Infrastructure KPI Cards */}

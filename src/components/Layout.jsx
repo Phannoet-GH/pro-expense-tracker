@@ -6,7 +6,7 @@ import { useBilling } from '../context/BillingContext';
 import PricingModal from './PricingModal';
 
 export default function Layout() {
-  const { dbStatus, dbInfo, refreshFromDb, netSavings, formatAmount } = useContext(ExpenseContext);
+  const { netSavings, formatAmount } = useContext(ExpenseContext);
   const { currentUser, logout } = useContext(UserContext);
   const { tier, isPro, openPricingModal } = useBilling();
   const navigate = useNavigate();
@@ -175,23 +175,6 @@ export default function Layout() {
           </div>
 
           <div className="ms-auto d-flex align-items-center gap-3">
-            {/* MySQL Connection Status Indicator */}
-            {dbStatus === 'connected' && (
-              <span className="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center px-3 py-2" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                <span className="spinner-grow spinner-grow-sm text-success me-2" style={{ width: '0.5rem', height: '0.5rem' }} role="status"></span>
-                <i className="bi bi-database-check me-1"></i> MySQL Live: {dbInfo?.dbName || 'pro_expense_tracker'}
-              </span>
-            )}
-            {dbStatus === 'offline' && (
-              <span
-                className="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle d-inline-flex align-items-center px-3 py-2"
-                onClick={refreshFromDb}
-                title="Click to retry connecting to MySQL"
-                style={{ fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <i className="bi bi-database-x me-1"></i> Reconnect DB
-              </span>
-            )}
 
             {/* User Session Info Pill */}
             <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-light">

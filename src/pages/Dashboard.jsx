@@ -198,7 +198,7 @@ export default function Dashboard() {
           <p className="text-muted small m-0">Monitor income cash flow, expense categories, budget thresholds, and wealth building</p>
         </div>
         <div className="d-flex gap-2 flex-wrap">
-          <Link to="/savings" className="btn btn-sm btn-warning rounded-pill px-3 fw-semibold text-dark shadow-sm">
+          <Link to="/dashboard/savings" className="btn btn-sm btn-warning rounded-pill px-3 fw-semibold text-dark shadow-sm">
             <i className="bi bi-piggy-bank-fill me-1"></i> How to Save Money
           </Link>
           <button
@@ -285,7 +285,7 @@ export default function Dashboard() {
             </span>
             <span className="fw-bold small text-dark">50/30/20 Income Allocation Health</span>
           </div>
-          <Link to="/savings" className="small fw-bold text-primary text-decoration-none">
+          <Link to="/dashboard/savings" className="small fw-bold text-primary text-decoration-none">
             Deep Dive in Savings Hub <i className="bi bi-arrow-right"></i>
           </Link>
         </div>
@@ -359,7 +359,7 @@ export default function Dashboard() {
         <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="fw-bold m-0"><i className="bi bi-bullseye text-primary me-2"></i>Active Savings Goals</h5>
-            <Link to="/savings" className="btn btn-sm btn-outline-primary rounded-pill px-3">Manage Goals</Link>
+            <Link to="/dashboard/savings" className="btn btn-sm btn-outline-primary rounded-pill px-3">Manage Goals</Link>
           </div>
           <div className="row g-3">
             {savingsGoals.slice(0, 3).map(g => {
@@ -645,7 +645,7 @@ export default function Dashboard() {
           <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="fw-bold m-0 text-dark">Recent Cash Flow Activity</h5>
-              <Link to="/transactions" className="btn btn-sm btn-outline-primary rounded-pill px-3">
+              <Link to="/dashboard/transactions" className="btn btn-sm btn-outline-primary rounded-pill px-3">
                 Full Ledger
               </Link>
             </div>

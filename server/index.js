@@ -118,7 +118,8 @@ app.get('/api/health', async (req, res) => {
     res.json({
       status: 'ok',
       database: 'connected',
-      dbName: 'pro_expense_tracker',
+      dbName: process.env.DB_NAME || 'pro_expense_tracker',
+      host: `${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '3306'}`,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -1164,6 +1165,13 @@ initDatabase().then(() => {
     console.log(`🚀 SmartFinance PRO API running on http://127.0.0.1:${PORT}`);
   });
 }).catch(err => {
-  console.error('Fatal: Could not connect to MySQL:', err.message);
-  process.exit(1);
+  console.error('⚠️  Warning: Could not connect to MySQL:', err.message);
+  console.error('   DB_HOST:', process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || '(not set)');
+  console.error('   DB_USER:', process.env.DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || '(not set)');
+  console.error('   DB_NAME:', process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || '(not set)');
+  console.warn('🔁 Starting server anyway — API routes will return 503 until DB is available.');
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running (DB offline) on http://127.0.0.1:${PORT}`);
+  });
 });
+

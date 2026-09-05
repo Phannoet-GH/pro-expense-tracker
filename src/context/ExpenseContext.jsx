@@ -189,7 +189,7 @@ export const ExpenseProvider = ({ children }) => {
       if (healthOk && healthData && !isOffline && !isHtml && healthData.database === 'connected') {
         isBackendAlive = true;
         setDbStatus('connected');
-        if (healthData.dbName) setDbInfo(prev => ({ ...prev, dbName: healthData.dbName }));
+        if (healthData.dbName) setDbInfo(prev => ({ ...prev, dbName: healthData.dbName, host: healthData.host || prev.host }));
       } else {
         setDbStatus('offline');
       }

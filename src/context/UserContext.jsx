@@ -247,9 +247,9 @@ export function UserProvider({ children }) {
         isBackendOffline = true;
       }
 
-      // If backend is offline or on a static host, fall back to offline authentication
+      // Backend is unreachable — fail clearly instead of using localStorage accounts
       if (isBackendOffline) {
-        return handleOfflineLogin(email, password);
+        throw new Error('Cannot reach the backend server. Please make sure the server is running on port 5001 before signing in.');
       }
 
       throw new Error(apiData?.error || 'Invalid email or password. Please check your credentials and try again.');
@@ -295,9 +295,9 @@ export function UserProvider({ children }) {
         isBackendOffline = true;
       }
 
-      // If backend is offline or on a static host, fall back to offline registration
+      // Backend is unreachable — fail clearly instead of silently saving to localStorage
       if (isBackendOffline) {
-        return handleOfflineRegister(userData);
+        throw new Error('Cannot reach the backend server. Please make sure the server is running on port 5001 before registering.');
       }
 
       throw new Error(apiData?.error || 'Registration failed. Please check your inputs and try again.');

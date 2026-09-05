@@ -124,7 +124,7 @@ export default function AdminSystem() {
               </div>
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <span className="text-muted small">Database Engine:</span>
-                <span className="fw-semibold text-dark">MySQL 8.0 (SSL/Encrypted)</span>
+                <span className="fw-semibold text-dark">MySQL 8.0 (SSL Connected)</span>
               </div>
               <div className="d-flex justify-content-between align-items-center">
                 <span className="text-muted small">Connection Mode:</span>

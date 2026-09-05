@@ -138,11 +138,11 @@ export default function AdminDashboard() {
                 <span className="badge bg-primary rounded-pill">{stats?.totalUsers || 0} rows</span>
               </div>
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
-                <span className="small fw-semibold">Encrypted Expense Entries</span>
+                <span className="small fw-semibold">Expense Entries</span>
                 <span className="badge bg-danger rounded-pill">{stats?.databaseMetrics?.totalExpenseRows || 0} rows</span>
               </div>
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">
-                <span className="small fw-semibold">Encrypted Income Streams</span>
+                <span className="small fw-semibold">Income Streams</span>
                 <span className="badge bg-success rounded-pill">{stats?.databaseMetrics?.totalIncomeRows || 0} rows</span>
               </div>
               <div className="list-group-item d-flex justify-content-between align-items-center py-2">

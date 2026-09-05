@@ -9,6 +9,8 @@ export default function Transactions() {
     deleteIncome,
     addExpense,
     addIncome,
+    updateExpense,
+    updateIncome,
     formatAmount,
     currency,
     expenseCategories,
@@ -32,6 +34,75 @@ export default function Transactions() {
     notes: '',
     is_recurring: false
   });
+
+  // Edit Modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
+  const [editForm, setEditForm] = useState({
+    id: '',
+    txType: 'expense',
+    title: '',
+    amount: '',
+    category: 'Food & Drink',
+    source: 'Salary',
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    is_recurring: false,
+    receipt: null,
+    is_tax_deductible: false,
+    tax_category: 'General Business'
+  });
+
+  const handleOpenEdit = (tx) => {
+    setEditingTx(tx);
+    setEditForm({
+      id: tx.id,
+      txType: tx.txType,
+      title: tx.title || '',
+      amount: tx.amount ? tx.amount.toString() : '',
+      category: tx.category || 'Food & Drink',
+      source: tx.source || 'Salary',
+      date: tx.date || new Date().toISOString().split('T')[0],
+      notes: tx.notes || '',
+      is_recurring: Boolean(tx.is_recurring),
+      receipt: tx.receipt || null,
+      is_tax_deductible: Boolean(tx.is_tax_deductible),
+      tax_category: tx.tax_category || 'General Business'
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    if (!editForm.amount || parseFloat(editForm.amount) <= 0) return;
+
+    if (editForm.txType === 'expense') {
+      updateExpense({
+        id: editForm.id,
+        title: editForm.title.trim() || `${editForm.category} Expense`,
+        amount: parseFloat(editForm.amount),
+        category: editForm.category,
+        date: editForm.date,
+        notes: editForm.notes,
+        receipt: editForm.receipt,
+        is_tax_deductible: editForm.is_tax_deductible,
+        tax_category: editForm.tax_category
+      });
+    } else {
+      updateIncome({
+        id: editForm.id,
+        title: editForm.title.trim() || `${editForm.source} Income`,
+        amount: parseFloat(editForm.amount),
+        source: editForm.source,
+        date: editForm.date,
+        notes: editForm.notes,
+        is_recurring: editForm.is_recurring
+      });
+    }
+
+    setShowEditModal(false);
+    setEditingTx(null);
+  };
 
   // Combine and filter transactions
   const combinedTransactions = useMemo(() => {
@@ -120,7 +191,7 @@ export default function Transactions() {
     setModalForm({
       title: '',
       amount: '',
-      category: 'Food & Dining',
+      category: 'Food & Drink',
       source: 'Salary',
       date: new Date().toISOString().split('T')[0],
       notes: '',
@@ -260,13 +331,24 @@ export default function Transactions() {
                     {isInc ? `+${formatAmount(tx.amount)}` : `-${formatAmount(tx.amount)}`}
                   </td>
                   <td className="text-center">
-                    <button
-                      className="btn btn-sm btn-light text-danger rounded-circle"
-                      onClick={() => handleDelete(tx)}
-                      title="Delete transaction"
-                    >
-                      <i className="bi bi-trash-fill"></i>
-                    </button>
+                    <div className="d-flex justify-content-center gap-1">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light text-primary rounded-circle"
+                        onClick={() => handleOpenEdit(tx)}
+                        title="Edit transaction"
+                      >
+                        <i className="bi bi-pencil-square"></i>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light text-danger rounded-circle"
+                        onClick={() => handleDelete(tx)}
+                        title="Delete transaction"
+                      >
+                        <i className="bi bi-trash-fill"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -492,6 +574,156 @@ export default function Transactions() {
                   Close Receipt
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT TRANSACTION */}
+      {showEditModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-light border-0 py-3">
+                <h5 className="modal-title fw-bold text-dark">
+                  <i className="bi bi-pencil-square text-primary me-2"></i>
+                  Edit {editForm.txType === 'income' ? 'Income' : 'Expense'}
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowEditModal(false)}></button>
+              </div>
+              <form onSubmit={handleEditSubmit}>
+                <div className="modal-body p-4">
+                  {/* Title / Description */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-muted">Title / Description</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editForm.title}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder={editForm.txType === 'expense' ? 'e.g. Starbucks Nitro Cold Brew' : 'e.g. Monthly Base Salary'}
+                    />
+                  </div>
+
+                  {/* Category or Source & Amount */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold text-muted">
+                        {editForm.txType === 'expense' ? 'Expense Category' : 'Income Source'}
+                      </label>
+                      {editForm.txType === 'expense' ? (
+                        <select
+                          className="form-select"
+                          value={editForm.category}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                        >
+                          {expenseCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <select
+                          className="form-select"
+                          value={editForm.source}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, source: e.target.value }))}
+                        >
+                          {incomeSources.map(src => (
+                            <option key={src} value={src}>{src}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold text-muted">Amount ({currency})</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        className="form-control fw-bold"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, amount: e.target.value }))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date & Recurring/Tax */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold text-muted">Transaction Date</label>
+                      <input
+                        type="date"
+                        required
+                        className="form-control"
+                        value={editForm.date}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                      />
+                    </div>
+
+                    {editForm.txType === 'income' ? (
+                      <div className="col-6 d-flex align-items-end">
+                        <div className="form-check form-switch mb-2">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="editRecurringSwitch"
+                            checked={editForm.is_recurring}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, is_recurring: e.target.checked }))}
+                          />
+                          <label className="form-check-label small fw-semibold text-dark" htmlFor="editRecurringSwitch">
+                            Recurring Income
+                          </label>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="col-6 d-flex align-items-end">
+                        <div className="form-check form-switch mb-2">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="editTaxSwitch"
+                            checked={editForm.is_tax_deductible}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, is_tax_deductible: e.target.checked }))}
+                          />
+                          <label className="form-check-label small fw-semibold text-dark" htmlFor="editTaxSwitch">
+                            Tax Deductible
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <div className="mb-2">
+                    <label className="form-label small fw-semibold text-muted">Notes / Memo</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Optional notes or context..."
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div className="modal-footer bg-light border-0 py-3">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border rounded-pill px-3"
+                    onClick={() => setShowEditModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-sm btn-primary rounded-pill px-4 fw-bold shadow-sm"
+                  >
+                    <i className="bi bi-check-lg me-1"></i> Save Changes
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

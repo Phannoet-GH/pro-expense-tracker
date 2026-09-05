@@ -129,28 +129,28 @@ export const ExpenseProvider = ({ children }) => {
 
   // Persist state to localStorage when offline
   useEffect(() => {
-    if (userStorageKey && dbStatus === 'offline' && expenses.length > 0) {
+    if (userStorageKey && dbStatus === 'offline' && !isLoading) {
       localStorage.setItem(`smartfinance_expenses_${userStorageKey}`, JSON.stringify(expenses));
     }
-  }, [expenses, userStorageKey, dbStatus]);
+  }, [expenses, userStorageKey, dbStatus, isLoading]);
 
   useEffect(() => {
-    if (userStorageKey && dbStatus === 'offline' && incomes.length > 0) {
+    if (userStorageKey && dbStatus === 'offline' && !isLoading) {
       localStorage.setItem(`smartfinance_incomes_${userStorageKey}`, JSON.stringify(incomes));
     }
-  }, [incomes, userStorageKey, dbStatus]);
+  }, [incomes, userStorageKey, dbStatus, isLoading]);
 
   useEffect(() => {
-    if (userStorageKey && dbStatus === 'offline' && savingsGoals.length > 0) {
+    if (userStorageKey && dbStatus === 'offline' && !isLoading) {
       localStorage.setItem(`smartfinance_goals_${userStorageKey}`, JSON.stringify(savingsGoals));
     }
-  }, [savingsGoals, userStorageKey, dbStatus]);
+  }, [savingsGoals, userStorageKey, dbStatus, isLoading]);
 
   useEffect(() => {
-    if (userStorageKey && dbStatus === 'offline' && budgets) {
+    if (userStorageKey && dbStatus === 'offline' && !isLoading && budgets) {
       localStorage.setItem(`smartfinance_budgets_${userStorageKey}`, JSON.stringify(budgets));
     }
-  }, [budgets, userStorageKey, dbStatus]);
+  }, [budgets, userStorageKey, dbStatus, isLoading]);
 
   const changeCurrency = (newCurr) => {
     setCurrency(newCurr);

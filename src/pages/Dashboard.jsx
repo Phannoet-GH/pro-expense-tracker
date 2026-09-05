@@ -171,7 +171,7 @@ export default function Dashboard() {
     setFormData({
       title: '',
       date: new Date().toISOString().split('T')[0],
-      category: 'Food & Dining',
+      category: 'Food & Drink',
       source: 'Salary',
       amount: '',
       notes: '',

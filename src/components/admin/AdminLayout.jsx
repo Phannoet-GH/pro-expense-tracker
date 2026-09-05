@@ -14,7 +14,7 @@ export default function AdminLayout() {
   };
 
   const handleSwitchToClient = () => {
-    navigate('/');
+    navigate('/dashboard');
   };
 
   return (
@@ -133,12 +133,12 @@ export default function AdminLayout() {
             </span>
           </div>
 
-          <div className="ms-auto d-flex align-items-center gap-3">
+          <div className="ms-auto d-flex align-items-center gap-2">
             {/* DB Status */}
             {dbStatus === 'connected' && (
               <span className="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center px-3 py-2" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                 <span className="spinner-grow spinner-grow-sm text-success me-2" style={{ width: '0.5rem', height: '0.5rem' }} role="status"></span>
-                <i className="bi bi-database-check me-1"></i> MySQL: {dbInfo?.dbName || 'pro_expense_tracker'}
+                <i className="bi bi-database-check me-1"></i> MySQL Connected
               </span>
             )}
             {dbStatus === 'offline' && (
@@ -151,6 +151,14 @@ export default function AdminLayout() {
                 <i className="bi bi-database-x me-1"></i> MySQL Offline
               </span>
             )}
+
+            <button
+              onClick={handleSwitchToClient}
+              className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+            >
+              <i className="bi bi-speedometer2"></i>
+              <span>Personal View</span>
+            </button>
 
             <button
               onClick={handleLogout}

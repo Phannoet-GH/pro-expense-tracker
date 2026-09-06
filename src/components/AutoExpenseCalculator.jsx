@@ -1,5 +1,6 @@
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
+import { UserContext } from '../context/UserContext';
 
 export default function AutoExpenseCalculator({ onApplied, preselectedGoal = null }) {
   const {
@@ -10,6 +11,8 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
     currency,
     applyAutoBudgets
   } = useContext(ExpenseContext);
+
+  const { currentUser } = useContext(UserContext) || {};
 
   // Start with clean empty inputs — no forced default values to delete
   const [incomeInput, setIncomeInput] = useState('');
@@ -301,9 +304,16 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
       <div className="p-4 rounded-4 text-white mb-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}>
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div>
-            <span className="badge bg-white bg-opacity-25 px-3 py-1 rounded-pill small fw-semibold text-uppercase mb-2">
-              <i className="bi bi-calculator-fill me-1"></i> Auto Expense & Rebalance Planner
-            </span>
+            <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
+              <span className="badge bg-white bg-opacity-25 px-3 py-1 rounded-pill small fw-semibold text-uppercase">
+                <i className="bi bi-calculator-fill me-1"></i> Auto Expense & Rebalance Planner
+              </span>
+              {currentUser && (
+                <span className="badge bg-dark bg-opacity-25 px-2 py-1 rounded-pill small fw-normal">
+                  <i className="bi bi-person-fill me-1"></i> {currentUser.name || currentUser.email}
+                </span>
+              )}
+            </div>
             <h3 className="fw-bold mb-1">Auto-Calculate Monthly Expenses from Saving Goal</h3>
             <p className="mb-0 text-white-50 small" style={{ maxWidth: '640px' }}>
               Set your target monthly savings. When expenses change (e.g. <strong>Food & Drink increases</strong>), other categories like <strong>Other automatically decrease</strong> so your saving goal is always achieved!

@@ -20,6 +20,12 @@ async function seed() {
   try { await pool.query("ALTER TABLE expenses ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
   try { await pool.query("ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
   try { await pool.query("ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1'"); } catch {}
+  try {
+    const [bCols] = await pool.query("SHOW COLUMNS FROM budgets LIKE 'user_id'");
+    if (bCols.length === 0) {
+      await pool.query("ALTER TABLE budgets DROP PRIMARY KEY, ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'global' FIRST, ADD PRIMARY KEY (user_id, category)");
+    }
+  } catch {}
 
   const today = new Date();
   const formatDate = (daysAgo) => {
@@ -53,7 +59,7 @@ async function seed() {
   }
   console.log(`✅ Seeded Super Administrator user: ${users[0].email}`);
 
-  // 2. Seed Default Category Budgets
+  // 2. Seed Default Benchmark Category Budgets (global baseline)
   const budgets = [
     ['Room', 600],
     ['Food & Drink', 400],
@@ -64,12 +70,12 @@ async function seed() {
 
   for (const [cat, amt] of budgets) {
     await pool.query(
-      `INSERT INTO budgets (category, amount) VALUES (?, ?)
+      `INSERT INTO budgets (user_id, category, amount) VALUES ('global', ?, ?)
        ON DUPLICATE KEY UPDATE amount=VALUES(amount)`,
       [cat, amt]
     );
   }
-  console.log('✅ Seeded default budgets');
+  console.log('✅ Seeded default benchmark budgets (user_id = "global")');
 
   await pool.end();
   console.log('🎉 Database initialization complete. Clean slate ready for real clients!');

@@ -16,6 +16,7 @@ export default function Dashboard() {
     addExpense,
     addIncome,
     updateBudget,
+    resetBudgets,
     sampleReceipts,
     incomeSources,
     expenseCategories,
@@ -29,7 +30,7 @@ export default function Dashboard() {
     dualCurrencyEnabled
   } = useContext(ExpenseContext);
 
-  const { token } = useContext(UserContext) || {};
+  const { token, currentUser } = useContext(UserContext) || {};
   const { isPro, billingData, openPricingModal, refreshBilling } = useBilling();
 
   // Admin reply notification states
@@ -138,6 +139,11 @@ export default function Dashboard() {
 
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState({ ...budgets });
+
+  // Sync draft whenever user's loaded budgets change (e.g. login / account switch)
+  useEffect(() => {
+    setBudgetDraft({ ...budgets });
+  }, [budgets]);
 
   // Remaining budget
   const remainingBudget = totalBudgetLimit - totalExpense;
@@ -272,6 +278,12 @@ export default function Dashboard() {
       updateBudget(cat, val);
     });
     setShowBudgetEditor(false);
+  };
+
+  const handleResetBudgets = async () => {
+    if (window.confirm('Reset monthly category allowances for this account back to default benchmark values ($600 Room, $400 Food & Drink, $200 Transport, etc.)?')) {
+      await resetBudgets?.();
+    }
   };
 
   return (
@@ -551,8 +563,23 @@ export default function Dashboard() {
 
       {/* Budget Configuration Drawer */}
       {showBudgetEditor && (
-        <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light">
-          <h5 className="fw-bold mb-3">Set Monthly Category Budgets</h5>
+        <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light border border-primary-subtle">
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h5 className="fw-bold mb-0 text-dark">Set Monthly Category Budgets</h5>
+              <div className="text-muted small">
+                Customized for account: <strong className="text-primary">{currentUser?.name || currentUser?.email || 'Active Account'}</strong>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-danger rounded-pill px-3"
+              onClick={handleResetBudgets}
+              title="Reset this account back to default benchmark values"
+            >
+              <i className="bi bi-arrow-counterclockwise me-1"></i> Reset to Benchmarks
+            </button>
+          </div>
           <div className="row g-3">
             {Object.keys(budgets).map((cat) => (
               <div key={cat} className="col-md-4 col-sm-6">
@@ -561,7 +588,7 @@ export default function Dashboard() {
                   type="number"
                   min="0"
                   className="form-control"
-                  value={budgetDraft[cat] || ''}
+                  value={budgetDraft[cat] ?? ''}
                   onChange={(e) => setBudgetDraft({ ...budgetDraft, [cat]: e.target.value })}
                 />
               </div>
@@ -917,17 +944,32 @@ export default function Dashboard() {
       <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div>
-            <h5 className="fw-bold m-0 text-dark">Monthly Category Budget Allowances</h5>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h5 className="fw-bold m-0 text-dark">Monthly Category Budget Allowances</h5>
+              <span className="badge bg-secondary-subtle text-secondary border px-2 py-1 small">
+                <i className="bi bi-person-circle me-1"></i>
+                {currentUser?.name || currentUser?.email || 'Account'}
+              </span>
+            </div>
             <span className="badge bg-primary-subtle text-primary mt-1">
               {formatAmount(totalExpense)} of {formatAmount(totalBudgetLimit)} spent &bull; Remaining: {formatAmount(remainingBudget)}
             </span>
           </div>
-          <button
-            className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
-            onClick={() => setShowAutoCalcModal(true)}
-          >
-            <i className="bi bi-calculator me-1"></i> Auto-Calculate from Saving Goal
-          </button>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button
+              className="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-medium shadow-sm"
+              onClick={handleResetBudgets}
+              title="Reset budgets for this account back to default benchmark allowances"
+            >
+              <i className="bi bi-arrow-counterclockwise me-1"></i> Reset to Defaults
+            </button>
+            <button
+              className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
+              onClick={() => setShowAutoCalcModal(true)}
+            >
+              <i className="bi bi-calculator me-1"></i> Auto-Calculate from Saving Goal
+            </button>
+          </div>
         </div>
 
         <div className="row g-3">

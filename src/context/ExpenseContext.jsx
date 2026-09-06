@@ -267,6 +267,7 @@ export const ExpenseProvider = ({ children }) => {
       setExpenses([]);
       setIncomes([]);
       setSavingsGoals([]);
+      setBudgets(DEFAULT_BUDGETS);
       return;
     }
 
@@ -305,11 +306,13 @@ export const ExpenseProvider = ({ children }) => {
         const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
         if (goalOk && Array.isArray(goalData)) setSavingsGoals(goalData);
 
-        // 5. Fetch default budgets
-        const budRes = await apiFetch('/api/budgets');
+        // 5. Fetch authenticated user's isolated category budgets (or default benchmarks)
+        const budRes = await apiFetch('/api/budgets', { headers: getAuthHeaders() });
         const { ok: budOk, data: budData } = await parseResponse(budRes);
         if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
-          setBudgets(prev => ({ ...prev, ...budData }));
+          setBudgets({ ...DEFAULT_BUDGETS, ...budData });
+        } else {
+          setBudgets(DEFAULT_BUDGETS);
         }
       } catch (error) {
         console.warn('[ExpenseContext] Online sync error:', error.message);
@@ -412,7 +415,13 @@ export const ExpenseProvider = ({ children }) => {
     }
 
     if (localBudgets) {
-      try { setBudgets(JSON.parse(localBudgets)); } catch {}
+      try {
+        setBudgets({ ...DEFAULT_BUDGETS, ...JSON.parse(localBudgets) });
+      } catch {
+        setBudgets(DEFAULT_BUDGETS);
+      }
+    } else {
+      setBudgets(DEFAULT_BUDGETS);
     }
 
     setIsLoading(false);
@@ -634,7 +643,13 @@ export const ExpenseProvider = ({ children }) => {
   // ================= BUDGETS & AUTO-CALCULATOR =================
   const updateBudget = async (category, amount) => {
     const numAmount = parseFloat(amount || 0);
-    setBudgets(prev => ({ ...prev, [category]: numAmount }));
+    setBudgets(prev => {
+      const next = { ...prev, [category]: numAmount };
+      if (userStorageKey) {
+        try { localStorage.setItem(`smartfinance_budgets_${userStorageKey}`, JSON.stringify(next)); } catch {}
+      }
+      return next;
+    });
 
     try {
       await apiFetch('/api/budgets', {
@@ -666,17 +681,36 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const applyAutoBudgets = async (categoryBudgets) => {
-    setBudgets(prev => ({ ...prev, ...categoryBudgets }));
-    try {
-      for (const [cat, amt] of Object.entries(categoryBudgets)) {
-        await apiFetch('/api/budgets', {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ category: cat, amount: parseFloat(amt) })
-        });
+    setBudgets(prev => {
+      const next = { ...prev, ...categoryBudgets };
+      if (userStorageKey) {
+        try { localStorage.setItem(`smartfinance_budgets_${userStorageKey}`, JSON.stringify(next)); } catch {}
       }
+      return next;
+    });
+    try {
+      await apiFetch('/api/budgets', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ budgets: categoryBudgets })
+      });
     } catch (err) {
       console.warn('Budget sync offline:', err);
+    }
+  };
+
+  const resetBudgets = async () => {
+    setBudgets(DEFAULT_BUDGETS);
+    if (userStorageKey) {
+      try { localStorage.removeItem(`smartfinance_budgets_${userStorageKey}`); } catch {}
+    }
+    try {
+      await apiFetch('/api/budgets', {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch (err) {
+      console.warn('Budget reset offline:', err);
     }
   };
 
@@ -715,7 +749,9 @@ export const ExpenseProvider = ({ children }) => {
       localStorage.removeItem(`smartfinance_expenses_${userStorageKey}`);
       localStorage.removeItem(`smartfinance_incomes_${userStorageKey}`);
       localStorage.removeItem(`smartfinance_goals_${userStorageKey}`);
+      localStorage.removeItem(`smartfinance_budgets_${userStorageKey}`);
     }
+    await resetBudgets();
     await clearAllExpenses();
     await clearAllIncomes();
     await clearAllSavingsGoals();
@@ -761,6 +797,7 @@ export const ExpenseProvider = ({ children }) => {
       deleteSavingsGoal,
       clearAllSavingsGoals,
       updateBudget,
+      resetBudgets,
       calculateAutoBudgets,
       applyAutoBudgets,
       totalIncome,

@@ -135,6 +135,38 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
+// Optional authentication middleware (extracts user if valid token present, does not reject if missing)
+export const optionalAuthMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        const pool = getPool();
+        const [rows] = await pool.query(
+          `SELECT id, name, email, role, avatar, status,
+                  plan_tier, subscription_status, current_period_end, monthly_ai_scans_used
+           FROM users WHERE auth_token = ?`,
+          [token]
+        );
+
+        if (rows.length > 0 && rows[0].status === 'active') {
+          const user = rows[0];
+          req.user = {
+            ...user,
+            plan_tier: user.plan_tier || 'free',
+            subscription_status: user.subscription_status || 'active',
+            monthly_ai_scans_used: parseInt(user.monthly_ai_scans_used || 0, 10)
+          };
+        }
+      }
+    }
+  } catch (err) {
+    // Non-fatal for optional auth
+  }
+  next();
+};
+
 // Admin role check middleware
 export const adminOnly = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
@@ -1330,17 +1362,39 @@ app.delete('/api/savings-goals/:id', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// 7. BUDGETS (BENCHMARKS)
+// 7. BUDGETS (PER-ACCOUNT ALLOWANCES & GLOBAL BENCHMARKS)
+// Each authenticated account maintains isolated budget allowances.
+// If an account has not set custom budgets, standard benchmarks (user_id = 'global') are returned.
 // ==========================================
-app.get('/api/budgets', async (req, res) => {
+app.get('/api/budgets', optionalAuthMiddleware, async (req, res) => {
   try {
     const pool = getPool();
-    const [rows] = await pool.query('SELECT category, amount FROM budgets');
-    const budgets = {};
-    rows.forEach(r => {
-      budgets[r.category] = parseFloat(r.amount);
+    const userId = req.user?.id;
+
+    if (userId) {
+      // Check if user has personal custom budgets saved
+      const [userRows] = await pool.query(
+        'SELECT category, amount FROM budgets WHERE user_id = ?',
+        [userId]
+      );
+      if (userRows.length > 0) {
+        const userBudgets = {};
+        userRows.forEach(r => {
+          userBudgets[r.category] = parseFloat(r.amount);
+        });
+        return res.json(userBudgets);
+      }
+    }
+
+    // Fall back to default benchmark budgets (global baseline)
+    const [globalRows] = await pool.query(
+      "SELECT category, amount FROM budgets WHERE user_id = 'global'"
+    );
+    const globalBudgets = {};
+    globalRows.forEach(r => {
+      globalBudgets[r.category] = parseFloat(r.amount);
     });
-    res.json(budgets);
+    res.json(globalBudgets);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch budgets' });
   }
@@ -1349,18 +1403,48 @@ app.get('/api/budgets', async (req, res) => {
 app.put('/api/budgets', authMiddleware, async (req, res) => {
   try {
     const pool = getPool();
+    const userId = req.user.id;
+
+    // Support batch update: { budgets: { 'Room': 500, 'Food & Drink': 350, ... } }
+    if (req.body.budgets && typeof req.body.budgets === 'object') {
+      const entries = Object.entries(req.body.budgets);
+      for (const [category, amount] of entries) {
+        if (category) {
+          await pool.query(
+            `INSERT INTO budgets (user_id, category, amount) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
+            [userId, category, parseFloat(amount) || 0]
+          );
+        }
+      }
+      return res.json({ success: true, message: 'Budgets updated successfully' });
+    }
+
+    // Single category update: { category, amount }
     const { category, amount } = req.body;
     if (!category) return res.status(400).json({ error: 'Category is required' });
 
     await pool.query(
-      `INSERT INTO budgets (category, amount) VALUES (?, ?)
+      `INSERT INTO budgets (user_id, category, amount) VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE amount = VALUES(amount)`,
-      [category, parseFloat(amount) || 0]
+      [userId, category, parseFloat(amount) || 0]
     );
 
-    res.json({ success: true });
+    res.json({ success: true, message: 'Budget updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update budget' });
+  }
+});
+
+// DELETE /api/budgets - Reset current user's custom category allowances back to benchmark defaults
+app.delete('/api/budgets', authMiddleware, async (req, res) => {
+  try {
+    const pool = getPool();
+    const userId = req.user.id;
+    await pool.query('DELETE FROM budgets WHERE user_id = ?', [userId]);
+    res.json({ success: true, message: 'Budgets reset to standard benchmarks' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset budgets' });
   }
 });
 
@@ -1415,6 +1499,7 @@ app.delete('/api/admin/users/:id', authMiddleware, adminOnly, async (req, res) =
     await pool.query('DELETE FROM expenses WHERE user_id = ?', [id]);
     await pool.query('DELETE FROM incomes WHERE user_id = ?', [id]);
     await pool.query('DELETE FROM savings_goals WHERE user_id = ?', [id]);
+    await pool.query('DELETE FROM budgets WHERE user_id = ?', [id]);
     await pool.query('DELETE FROM users WHERE id = ?', [id]);
 
     res.json({ success: true, message: 'User account and associated data removed.' });
@@ -1546,14 +1631,19 @@ app.get('/api/admin/audit', authMiddleware, adminOnly, async (req, res) => {
         LEFT JOIN users u ON i.user_id = u.id 
         WHERE u.id IS NULL
       `);
-      orphanCount = (orphanExpenses || 0) + (orphanIncomes || 0);
+      const [[{ orphanBudgets }]] = await pool.query(`
+        SELECT COUNT(*) as orphanBudgets FROM budgets b 
+        LEFT JOIN users u ON b.user_id = u.id 
+        WHERE b.user_id != 'global' AND u.id IS NULL
+      `);
+      orphanCount = (orphanExpenses || 0) + (orphanIncomes || 0) + (orphanBudgets || 0);
       checks.push({
         name: 'Orphan Record Detection',
         category: 'Data Integrity',
         status: orphanCount === 0 ? 'PASS' : 'WARN',
         details: orphanCount === 0
-          ? 'Zero orphan records found. All expenses and incomes link to valid users.'
-          : `Found ${orphanExpenses} orphaned expense(s) and ${orphanIncomes} orphaned income(s) from past sessions.`
+          ? 'Zero orphan records found. All expenses, incomes, and custom budgets link to valid users.'
+          : `Found ${orphanExpenses} orphaned expense(s), ${orphanIncomes} orphaned income(s), and ${orphanBudgets} orphaned budget(s) from past sessions.`
       });
     } catch (err) {
       checks.push({
@@ -1689,11 +1779,17 @@ app.post('/api/admin/audit/fix-orphans', authMiddleware, adminOnly, async (req, 
       LEFT JOIN users u ON i.user_id = u.id 
       WHERE u.id IS NULL
     `);
+    const [budRes] = await pool.query(`
+      DELETE b FROM budgets b 
+      LEFT JOIN users u ON b.user_id = u.id 
+      WHERE b.user_id != 'global' AND u.id IS NULL
+    `);
     res.json({
       success: true,
       cleanedExpenses: expRes.affectedRows || 0,
       cleanedIncomes: incRes.affectedRows || 0,
-      message: `Cleaned ${(expRes.affectedRows || 0) + (incRes.affectedRows || 0)} orphaned record(s).`
+      cleanedBudgets: budRes.affectedRows || 0,
+      message: `Cleaned ${(expRes.affectedRows || 0) + (incRes.affectedRows || 0) + (budRes.affectedRows || 0)} orphaned record(s).`
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to clean orphaned records: ' + error.message });

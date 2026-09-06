@@ -19,6 +19,7 @@ export default function Settings() {
     incomes,
     savingsGoals,
     budgets,
+    applyAutoBudgets,
     clearAllExpenses,
     clearAllIncomes,
     clearAllSavingsGoals,
@@ -128,8 +129,11 @@ export default function Settings() {
             await addSavingsGoal(goal);
           }
         }
+        if (json.budgets && typeof json.budgets === 'object' && Object.keys(json.budgets).length > 0) {
+          await applyAutoBudgets?.(json.budgets);
+        }
 
-        setBackupMsg({ type: 'success', message: 'Backup restored successfully! Financial ledger updated.' });
+        setBackupMsg({ type: 'success', message: 'Backup restored successfully! Financial ledger and budgets updated.' });
         setTimeout(() => setBackupMsg({ type: '', message: '' }), 5000);
       } catch (err) {
         setBackupMsg({ type: 'danger', message: `Import failed: ${err.message}` });

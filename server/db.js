@@ -163,6 +163,14 @@ export async function initDatabase() {
     try { await pool.query(`ALTER TABLE users DROP COLUMN target_savings_rate;`); } catch {}
     try { await pool.query(`ALTER TABLE users DROP COLUMN title;`); } catch {}
 
+    // Ensure budgets table has composite primary key (user_id, category)
+    try {
+      const [bCols] = await pool.query(`SHOW COLUMNS FROM budgets LIKE 'user_id'`);
+      if (bCols.length === 0) {
+        await pool.query(`ALTER TABLE budgets DROP PRIMARY KEY, ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'global' FIRST, ADD PRIMARY KEY (user_id, category)`);
+      }
+    } catch {}
+
     // Ensure super admin account (admin@gmail.com / admin) exists
     const adminHash = bcrypt.hashSync('admin', 10);
     const [existingAdmin] = await pool.query('SELECT id FROM users WHERE email = ?', ['admin@gmail.com']);
@@ -180,9 +188,9 @@ export async function initDatabase() {
       console.log('✅ [MySQL] Verified super admin: admin@gmail.com');
     }
 
-    // Ensure default budgets if empty
+    // Ensure default benchmark budgets if empty
     try {
-      const [budgetRows] = await pool.query('SELECT COUNT(*) as cnt FROM budgets');
+      const [budgetRows] = await pool.query("SELECT COUNT(*) as cnt FROM budgets WHERE user_id = 'global'");
       if (budgetRows[0]?.cnt === 0) {
         const defaultBudgets = [
           ['Room', 600],
@@ -192,7 +200,7 @@ export async function initDatabase() {
           ['Other', 240]
         ];
         for (const [cat, amt] of defaultBudgets) {
-          await pool.query('INSERT IGNORE INTO budgets (category, amount) VALUES (?, ?)', [cat, amt]);
+          await pool.query("INSERT IGNORE INTO budgets (user_id, category, amount) VALUES ('global', ?, ?)", [cat, amt]);
         }
       }
     } catch {}

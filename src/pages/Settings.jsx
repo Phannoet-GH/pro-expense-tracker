@@ -1,17 +1,31 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { UserContext } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { CURRENCY_METADATA, SUPPORTED_CURRENCIES } from '../utils/currency';
 
 export default function Settings() {
   const {
     currency,
     changeCurrency,
+    ratesStatus,
+    refreshExchangeRates,
+    customKhrRate,
+    updateCustomKhrRate,
+    dualCurrencyEnabled,
+    toggleDualCurrency,
+    expenses,
+    incomes,
+    savingsGoals,
+    budgets,
     clearAllExpenses,
     clearAllIncomes,
     clearAllSavingsGoals,
-    resetAllData
+    resetAllData,
+    addExpense,
+    addIncome,
+    addSavingsGoal
   } = useContext(ExpenseContext);
 
   const { currentUser, changePassword } = useContext(UserContext) || {};
@@ -25,6 +39,106 @@ export default function Settings() {
   });
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Currency & Rate states
+  const [isSyncingRates, setIsSyncingRates] = useState(false);
+  const [rateSyncStatus, setRateSyncStatus] = useState('');
+  const [tempKhrRate, setTempKhrRate] = useState(customKhrRate || '4100');
+  const [khrSaveNotice, setKhrSaveNotice] = useState(false);
+
+  // Backup & Restore
+  const importFileRef = useRef(null);
+  const [backupMsg, setBackupMsg] = useState({ type: '', message: '' });
+
+  const handleSyncRates = async () => {
+    setIsSyncingRates(true);
+    setRateSyncStatus('Fetching latest market rates...');
+    const res = await refreshExchangeRates();
+    setIsSyncingRates(false);
+    if (res?.success) {
+      setRateSyncStatus('✅ Exchange rates successfully updated to latest market rates!');
+      setTimeout(() => setRateSyncStatus(''), 4000);
+    } else {
+      setRateSyncStatus(`⚠️ Using cached rates (${res?.error || 'Network error'})`);
+      setTimeout(() => setRateSyncStatus(''), 4000);
+    }
+  };
+
+  const handleSaveKhrRate = (e) => {
+    e.preventDefault();
+    updateCustomKhrRate(tempKhrRate);
+    setKhrSaveNotice(true);
+    setTimeout(() => setKhrSaveNotice(false), 3000);
+  };
+
+  const handleExportBackup = () => {
+    const backupData = {
+      app: 'SmartFinance PRO',
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      currency,
+      customKhrRate,
+      expenses,
+      incomes,
+      savingsGoals,
+      budgets
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `smartfinance_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    setBackupMsg({ type: 'success', message: 'Backup JSON downloaded successfully!' });
+    setTimeout(() => setBackupMsg({ type: '', message: '' }), 4000);
+  };
+
+  const handleImportBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        if (!json || (!Array.isArray(json.expenses) && !Array.isArray(json.incomes))) {
+          throw new Error('Invalid backup file format.');
+        }
+
+        // Restore currency settings if present
+        if (json.currency) changeCurrency(json.currency);
+        if (json.customKhrRate) updateCustomKhrRate(json.customKhrRate);
+
+        // Restore items
+        if (Array.isArray(json.expenses)) {
+          for (const exp of json.expenses) {
+            await addExpense(exp);
+          }
+        }
+        if (Array.isArray(json.incomes)) {
+          for (const inc of json.incomes) {
+            await addIncome(inc);
+          }
+        }
+        if (Array.isArray(json.savingsGoals)) {
+          for (const goal of json.savingsGoals) {
+            await addSavingsGoal(goal);
+          }
+        }
+
+        setBackupMsg({ type: 'success', message: 'Backup restored successfully! Financial ledger updated.' });
+        setTimeout(() => setBackupMsg({ type: '', message: '' }), 5000);
+      } catch (err) {
+        setBackupMsg({ type: 'danger', message: `Import failed: ${err.message}` });
+      } finally {
+        if (importFileRef.current) importFileRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -67,26 +181,146 @@ export default function Settings() {
       <h3 className="fw-bold mb-1">{t('settingsTitle')}</h3>
       <p className="text-muted small mb-4">{t('settingsDesc')}</p>
 
-      {/* Preferences Section */}
+      {/* Preferences Section: Currency & Exchange Rate Hub */}
       <div className="mb-4">
         <h5 className="fw-semibold mb-3">
-          <i className="bi bi-sliders me-2 text-primary"></i>{t('preferences')}
+          <i className="bi bi-currency-exchange me-2 text-primary"></i>Currency &amp; Exchange Rates
         </h5>
-        <div className="mb-3">
-          <label className="form-label text-muted small fw-semibold">{t('defaultCurrency')}</label>
-          <select
-            className="form-select w-50"
-            value={currency}
-            onChange={(e) => changeCurrency(e.target.value)}
-          >
-            <option value="$">USD ($) - US Dollar</option>
-            <option value="€">EUR (€) - Euro</option>
-            <option value="£">GBP (£) - British Pound</option>
-            <option value="៛">KHR (៛) - Cambodian Riel</option>
-            <option value="¥">JPY (¥) - Japanese Yen</option>
-            <option value="CA$">CAD (CA$) - Canadian Dollar</option>
-            <option value="AU$">AUD (AU$) - Australian Dollar</option>
-          </select>
+
+        <div className="p-3 rounded-3 border mb-3" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-color)' }}>
+          {/* Currency Selection */}
+          <div className="mb-3">
+            <label className="form-label text-muted small fw-semibold">{t('defaultCurrency')}</label>
+            <select
+              className="form-select w-100 w-sm-75"
+              value={currency}
+              onChange={(e) => changeCurrency(e.target.value)}
+              style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+            >
+              {SUPPORTED_CURRENCIES.map((code) => {
+                const c = CURRENCY_METADATA[code];
+                return (
+                  <option key={code} value={code}>
+                    {c.flag} {c.code} ({c.symbol}) — {c.name}
+                  </option>
+                );
+              })}
+            </select>
+            <div className="text-muted mt-1" style={{ fontSize: '11px' }}>
+              All expenses and incomes will dynamically convert and format using active exchange rates.
+            </div>
+          </div>
+
+          {/* Live Rates Sync Panel */}
+          <div className="p-3 rounded-3 mb-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div>
+                <div className="fw-semibold small d-flex align-items-center gap-2">
+                  <i className="bi bi-arrow-repeat text-success"></i>
+                  <span>Live Currency Parity</span>
+                  <span className="badge rounded-pill bg-success-subtle text-success" style={{ fontSize: '10px' }}>
+                    {ratesStatus?.source === 'online' ? 'Online API' : ratesStatus?.source === 'cache' ? 'Cached Rates' : 'Benchmark'}
+                  </span>
+                </div>
+                <div className="text-muted" style={{ fontSize: '11px' }}>
+                  {ratesStatus?.lastUpdated
+                    ? `Last updated: ${new Date(ratesStatus.lastUpdated).toLocaleString()}`
+                    : 'Rates cached locally'}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSyncRates}
+                disabled={isSyncingRates}
+                className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+              >
+                {isSyncingRates ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span>Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-cloud-arrow-down-fill me-1"></i>
+                    <span>Sync Live Rates</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {rateSyncStatus && (
+              <div className="alert alert-info py-2 px-3 small rounded-3 mb-0 mt-2">
+                {rateSyncStatus}
+              </div>
+            )}
+          </div>
+
+          {/* Dual Currency Display Toggle */}
+          <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom" style={{ borderColor: 'var(--border-color)' }}>
+            <div>
+              <div className="fw-semibold small">
+                <i className="bi bi-intersect text-primary me-2"></i>
+                Dual Currency Display
+              </div>
+              <div className="text-muted" style={{ fontSize: '11px' }}>
+                Show both primary currency and secondary equivalent on dashboard KPI cards.
+              </div>
+            </div>
+            <div className="form-check form-switch m-0">
+              <input
+                className="form-check-input cursor-pointer"
+                type="checkbox"
+                role="switch"
+                id="dualCurrencySwitch"
+                checked={dualCurrencyEnabled}
+                onChange={(e) => toggleDualCurrency(e.target.checked)}
+              />
+            </div>
+          </div>
+
+          {/* Custom Cambodian Riel Market Rate Override */}
+          <form onSubmit={handleSaveKhrRate}>
+            <div className="row align-items-center g-2">
+              <div className="col-12 col-sm-8">
+                <label className="form-label text-muted small fw-semibold mb-1">
+                  <span className="me-1">🇰🇭</span>Custom USD ↔ KHR Exchange Rate (Cambodia)
+                </label>
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text" style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
+                    1 USD =
+                  </span>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={tempKhrRate}
+                    onChange={(e) => setTempKhrRate(e.target.value)}
+                    placeholder="4100"
+                    min="3000"
+                    max="6000"
+                    step="10"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  />
+                  <span className="input-group-text" style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
+                    KHR (៛)
+                  </span>
+                </div>
+              </div>
+              <div className="col-12 col-sm-4 text-sm-end mt-2 mt-sm-4">
+                <button
+                  type="submit"
+                  className="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold w-100"
+                >
+                  <i className="bi bi-check2 me-1"></i>Set Rate
+                </button>
+              </div>
+            </div>
+            {khrSaveNotice && (
+              <div className="text-success small mt-1 fw-semibold" style={{ fontSize: '11px' }}>
+                <i className="bi bi-check-circle-fill me-1"></i> Custom KHR rate saved!
+              </div>
+            )}
+          </form>
         </div>
       </div>
 
@@ -218,6 +452,52 @@ export default function Settings() {
               )}
             </button>
           </form>
+        </div>
+      </div>
+
+      <hr className="my-4" style={{ borderColor: 'var(--border-color)' }} />
+
+      {/* Backup & Restore Data Section */}
+      <div className="mb-4">
+        <h5 className="fw-semibold mb-3">
+          <i className="bi bi-database-down me-2 text-primary"></i>Data Backup &amp; Restore
+        </h5>
+        <div className="p-3 rounded-3 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-color)' }}>
+          <p className="text-muted small mb-3">
+            Export a full JSON backup of all your transactions, budgets, goals, and exchange settings to your device, or restore from a previous backup file.
+          </p>
+
+          {backupMsg.message && (
+            <div className={`alert alert-${backupMsg.type} small py-2 px-3 rounded-3 d-flex align-items-center gap-2 mb-3`}>
+              <i className={`bi ${backupMsg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}`}></i>
+              <div>{backupMsg.message}</div>
+            </div>
+          )}
+
+          <div className="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold shadow-xs"
+            >
+              <i className="bi bi-download me-1"></i> Export JSON Backup
+            </button>
+
+            <button
+              type="button"
+              onClick={() => importFileRef.current?.click()}
+              className="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold shadow-xs"
+            >
+              <i className="bi bi-upload me-1"></i> Restore from JSON
+            </button>
+            <input
+              type="file"
+              ref={importFileRef}
+              onChange={handleImportBackup}
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
       </div>
 

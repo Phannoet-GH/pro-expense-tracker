@@ -18,6 +18,7 @@ export default function Transactions() {
   } = useContext(ExpenseContext);
 
   const [typeFilter, setTypeFilter] = useState('All'); // 'All' | 'Expense' | 'Income'
+  const [dateFilter, setDateFilter] = useState('all'); // 'all' | 'today' | 'week' | 'month'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [inspectReceipt, setInspectReceipt] = useState(null);
@@ -123,6 +124,22 @@ export default function Transactions() {
           if (cat !== selectedCategory) return false;
         }
 
+        // Date Range filter
+        if (dateFilter !== 'all') {
+          const txDate = new Date(tx.date);
+          const now = new Date();
+          if (dateFilter === 'today') {
+            const todayStr = now.toISOString().split('T')[0];
+            if (tx.date !== todayStr) return false;
+          } else if (dateFilter === 'week') {
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (txDate < weekAgo) return false;
+          } else if (dateFilter === 'month') {
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            if (txDate < monthAgo) return false;
+          }
+        }
+
         // Search filter
         if (searchTerm.trim()) {
           const term = searchTerm.toLowerCase();
@@ -136,7 +153,7 @@ export default function Transactions() {
         return true;
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [expenses, incomes, typeFilter, selectedCategory, searchTerm]);
+  }, [expenses, incomes, typeFilter, dateFilter, selectedCategory, searchTerm]);
 
   // Handle deletion based on type
   const handleDelete = (tx) => {
@@ -235,6 +252,26 @@ export default function Transactions() {
             ))}
           </div>
 
+          {/* Date Range Filter Buttons */}
+          <div className="btn-group bg-light p-1 rounded-pill border" role="group">
+            {[
+              { id: 'all', label: 'All Time' },
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'This Week' },
+              { id: 'month', label: 'This Month' }
+            ].map(df => (
+              <button
+                key={df.id}
+                type="button"
+                className={`btn btn-sm rounded-pill px-2 px-sm-3 fw-semibold ${dateFilter === df.id ? 'btn-primary shadow-sm' : 'btn-light border-0 text-muted'}`}
+                style={{ fontSize: '11px' }}
+                onClick={() => setDateFilter(df.id)}
+              >
+                {df.label}
+              </button>
+            ))}
+          </div>
+
           {/* Category Filter */}
           <select
             className="form-select form-select-sm border bg-light rounded-pill px-3"
@@ -327,7 +364,7 @@ export default function Transactions() {
                       <span className="text-muted small">-</span>
                     )}
                   </td>
-                  <td className={`text-end fw-bold fs-6 ${isInc ? 'text-success' : 'text-dark'}`}>
+                  <td className={`text-end fw-bold fs-6 ${isInc ? 'text-success' : 'text-danger'}`}>
                     {isInc ? `+${formatAmount(tx.amount)}` : `-${formatAmount(tx.amount)}`}
                   </td>
                   <td className="text-center">

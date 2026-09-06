@@ -89,7 +89,8 @@ export default function PricingModal() {
           className="modal-content border-0 shadow-24"
           style={{
             borderRadius: '24px',
-            background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
             overflow: 'hidden'
           }}
         >
@@ -232,7 +233,8 @@ export default function PricingModal() {
                     <div
                       className="card h-100 border-2 border-primary rounded-4 p-4 d-flex flex-column position-relative shadow-lg"
                       style={{
-                        background: 'linear-gradient(180deg, #ffffff 0%, #eff6ff 100%)'
+                        background: 'var(--bg-input)',
+                        borderColor: 'var(--border-color)'
                       }}
                     >
                       <div

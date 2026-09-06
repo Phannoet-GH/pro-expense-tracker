@@ -1,5 +1,6 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
+import { useTheme } from '../context/ThemeContext';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -20,7 +21,8 @@ const TIMEFRAMES = [
 ];
 
 export default function Analytics() {
-  const { expenses, incomes, formatAmount, currency } = useContext(ExpenseContext);
+  const { expenses, incomes, formatAmount, currency, currencySymbol, convertAmount } = useContext(ExpenseContext);
+  const { isDark } = useTheme();
   const [timeframe, setTimeframe] = useState('all');
 
   // Filter items by timeframe
@@ -81,12 +83,16 @@ export default function Analytics() {
   const comparisonBarData = {
     labels: ['Total Income', 'Total Expenses', 'Net Savings'],
     datasets: [{
-      label: `Amount (${currency})`,
-      data: [periodTotalIncome, periodTotalExpense, Math.max(0, periodNetSavings)],
+      label: `Amount (${currencySymbol})`,
+      data: [
+        convertAmount(periodTotalIncome),
+        convertAmount(periodTotalExpense),
+        Math.max(0, convertAmount(periodNetSavings))
+      ],
       backgroundColor: [
-        'rgba(25, 135, 84, 0.85)',  // Income Green
-        'rgba(220, 53, 69, 0.85)',   // Expense Red
-        'rgba(13, 110, 253, 0.85)'   // Savings Blue
+        'rgba(16, 185, 129, 0.85)',  // Income Green
+        'rgba(239, 68, 68, 0.85)',   // Expense Red
+        'rgba(59, 130, 246, 0.85)'   // Savings Blue
       ],
       borderRadius: 8
     }]
@@ -96,7 +102,7 @@ export default function Analytics() {
   const expenseDoughnutData = {
     labels: Object.keys(expenseCategoryTotals),
     datasets: [{
-      data: Object.values(expenseCategoryTotals),
+      data: Object.values(expenseCategoryTotals).map(val => convertAmount(val)),
       backgroundColor: [
         '#0d6efd',
         '#198754',
@@ -109,7 +115,7 @@ export default function Analytics() {
         '#6c757d'
       ],
       borderWidth: 2,
-      borderColor: '#ffffff'
+      borderColor: isDark ? '#1e293b' : '#ffffff'
     }]
   };
 
@@ -117,7 +123,7 @@ export default function Analytics() {
   const incomeDoughnutData = {
     labels: Object.keys(incomeSourceTotals),
     datasets: [{
-      data: Object.values(incomeSourceTotals),
+      data: Object.values(incomeSourceTotals).map(val => convertAmount(val)),
       backgroundColor: [
         '#10b981',
         '#06b6d4',
@@ -128,7 +134,7 @@ export default function Analytics() {
         '#3b82f6'
       ],
       borderWidth: 2,
-      borderColor: '#ffffff'
+      borderColor: isDark ? '#1e293b' : '#ffffff'
     }]
   };
 
@@ -201,9 +207,17 @@ export default function Analytics() {
                   responsive: true,
                   plugins: { legend: { display: false } },
                   scales: {
+                    x: {
+                      ticks: { color: isDark ? '#94a3b8' : '#64748b' },
+                      grid: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)' }
+                    },
                     y: {
                       beginAtZero: true,
-                      ticks: { callback: (val) => `${currency}${val}` }
+                      ticks: {
+                        color: isDark ? '#94a3b8' : '#64748b',
+                        callback: (val) => `${currencySymbol}${Number(val).toLocaleString()}`
+                      },
+                      grid: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)' }
                     }
                   }
                 }}
@@ -265,7 +279,14 @@ export default function Analytics() {
                   data={expenseDoughnutData}
                   options={{
                     plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } },
+                      legend: {
+                        position: 'bottom',
+                        labels: {
+                          boxWidth: 12,
+                          padding: 12,
+                          color: isDark ? '#cbd5e1' : '#475569'
+                        }
+                      },
                       tooltip: {
                         callbacks: {
                           label: (ctx) => {
@@ -295,7 +316,14 @@ export default function Analytics() {
                   data={incomeDoughnutData}
                   options={{
                     plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } },
+                      legend: {
+                        position: 'bottom',
+                        labels: {
+                          boxWidth: 12,
+                          padding: 12,
+                          color: isDark ? '#cbd5e1' : '#475569'
+                        }
+                      },
                       tooltip: {
                         callbacks: {
                           label: (ctx) => {

@@ -2,6 +2,15 @@ import React, { createContext, useState, useEffect, useCallback, useMemo, useCon
 import { v4 as uuidv4 } from 'uuid';
 import { UserContext } from './UserContext';
 import { parseResponse, apiFetch } from '../utils/api';
+import {
+  CURRENCY_METADATA,
+  SUPPORTED_CURRENCIES,
+  DEFAULT_EXCHANGE_RATES,
+  fetchLiveExchangeRates,
+  convertCurrency,
+  formatCurrencyAmount,
+  getCurrencyMeta
+} from '../utils/currency';
 
 export const ExpenseContext = createContext();
 
@@ -114,17 +123,56 @@ export const ExpenseProvider = ({ children }) => {
   const [incomes, setIncomes] = useState([]);
   const [savingsGoals, setSavingsGoals] = useState([]);
   const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
-  const [currency, setCurrency] = useState('$');
+  const [currency, setCurrency] = useState(() => {
+    const saved = localStorage.getItem('app_currency');
+    const symbolMap = { '$': 'USD', '៛': 'KHR', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'CA$': 'CAD', 'AU$': 'AUD', '฿': 'THB', 'S$': 'SGD', 'CN¥': 'CNY' };
+    return symbolMap[saved] || saved || 'USD';
+  });
+
+  const [exchangeRates, setExchangeRates] = useState(() => {
+    try {
+      const cached = localStorage.getItem('sf_exchange_rates');
+      return cached ? { ...DEFAULT_EXCHANGE_RATES, ...JSON.parse(cached) } : DEFAULT_EXCHANGE_RATES;
+    } catch {
+      return DEFAULT_EXCHANGE_RATES;
+    }
+  });
+
+  const [ratesStatus, setRatesStatus] = useState(() => ({
+    lastUpdated: localStorage.getItem('sf_exchange_rates_timestamp') || null,
+    source: localStorage.getItem('sf_exchange_rates') ? 'cache' : 'fallback',
+    isUpdating: false
+  }));
+
+  const [customKhrRate, setCustomKhrRate] = useState(() => {
+    return localStorage.getItem('app_custom_khr_rate') || '4100';
+  });
+
+  const [dualCurrencyEnabled, setDualCurrencyEnabled] = useState(() => {
+    return localStorage.getItem('app_dual_currency') === 'true';
+  });
+
   const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline'
   const [dbInfo, setDbInfo] = useState({ dbName: 'pro_expense_tracker', host: '127.0.0.1:3306' });
   const [isLoading, setIsLoading] = useState(false);
 
   const userStorageKey = currentUser?.id || 'guest';
 
-  // Load currency preference
+  // Fetch live exchange rates on initial load silently
   useEffect(() => {
-    const savedCurrency = localStorage.getItem('app_currency');
-    if (savedCurrency) setCurrency(savedCurrency);
+    let isMounted = true;
+    fetchLiveExchangeRates().then(result => {
+      if (!isMounted) return;
+      if (result && result.rates) {
+        setExchangeRates(result.rates);
+        setRatesStatus({
+          lastUpdated: result.lastUpdated,
+          source: result.source,
+          isUpdating: false
+        });
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
   }, []);
 
   // Persist state to localStorage when offline
@@ -152,14 +200,59 @@ export const ExpenseProvider = ({ children }) => {
     }
   }, [budgets, userStorageKey, dbStatus, isLoading]);
 
-  const changeCurrency = (newCurr) => {
-    setCurrency(newCurr);
-    localStorage.setItem('app_currency', newCurr);
-  };
+  const refreshExchangeRates = useCallback(async () => {
+    setRatesStatus(prev => ({ ...prev, isUpdating: true }));
+    try {
+      const result = await fetchLiveExchangeRates();
+      if (result && result.rates) {
+        setExchangeRates(result.rates);
+        setRatesStatus({
+          lastUpdated: result.lastUpdated,
+          source: result.source,
+          isUpdating: false
+        });
+        return { success: true, ...result };
+      }
+      return { success: false, error: 'No rates received' };
+    } catch (err) {
+      setRatesStatus(prev => ({ ...prev, isUpdating: false }));
+      return { success: false, error: err.message };
+    }
+  }, []);
 
-  const formatAmount = useCallback((amount) => {
-    const num = parseFloat(amount || 0);
-    return `${currency}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const changeCurrency = useCallback((newCurr) => {
+    const symbolMap = { '$': 'USD', '៛': 'KHR', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'CA$': 'CAD', 'AU$': 'AUD', '฿': 'THB', 'S$': 'SGD', 'CN¥': 'CNY' };
+    const code = symbolMap[newCurr] || newCurr || 'USD';
+    setCurrency(code);
+    localStorage.setItem('app_currency', code);
+  }, []);
+
+  const updateCustomKhrRate = useCallback((rate) => {
+    const cleanRate = String(rate).replace(/[^0-9.]/g, '');
+    setCustomKhrRate(cleanRate);
+    localStorage.setItem('app_custom_khr_rate', cleanRate);
+  }, []);
+
+  const toggleDualCurrency = useCallback((val) => {
+    const nextVal = typeof val === 'boolean' ? val : !dualCurrencyEnabled;
+    setDualCurrencyEnabled(nextVal);
+    localStorage.setItem('app_dual_currency', nextVal ? 'true' : 'false');
+  }, [dualCurrencyEnabled]);
+
+  const convertAmount = useCallback((amount, targetCurr = currency, fromCurr = 'USD') => {
+    return convertCurrency(amount, fromCurr, targetCurr, exchangeRates, customKhrRate);
+  }, [currency, exchangeRates, customKhrRate]);
+
+  const formatAmount = useCallback((amount, overrideCurrency = null) => {
+    const targetCurr = overrideCurrency || currency;
+    return formatCurrencyAmount(amount, targetCurr, exchangeRates, {
+      fromCurrency: 'USD',
+      customKhrRate
+    });
+  }, [currency, exchangeRates, customKhrRate]);
+
+  const currencySymbol = useMemo(() => {
+    return getCurrencyMeta(currency).symbol;
   }, [currency]);
 
   // Auth Headers helper
@@ -640,8 +733,17 @@ export const ExpenseProvider = ({ children }) => {
       allSavingsGoals: savingsGoals,
       budgets,
       currency,
+      currencySymbol,
       changeCurrency,
       formatAmount,
+      exchangeRates,
+      ratesStatus,
+      refreshExchangeRates,
+      customKhrRate,
+      updateCustomKhrRate,
+      dualCurrencyEnabled,
+      toggleDualCurrency,
+      convertAmount,
       dbStatus,
       dbInfo,
       isLoading,

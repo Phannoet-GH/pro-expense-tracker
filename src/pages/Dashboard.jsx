@@ -5,6 +5,7 @@ import { useBilling } from '../context/BillingContext';
 import { apiFetch, parseResponse } from '../utils/api';
 import { Link } from 'react-router-dom';
 import AutoExpenseCalculator from '../components/AutoExpenseCalculator';
+import CurrencyConverterModal from '../components/CurrencyConverterModal';
 
 export default function Dashboard() {
   const {
@@ -24,7 +25,8 @@ export default function Dashboard() {
     savingsRate,
     totalBudgetLimit,
     formatAmount,
-    currency
+    currency,
+    dualCurrencyEnabled
   } = useContext(ExpenseContext);
 
   const { token } = useContext(UserContext) || {};
@@ -33,6 +35,7 @@ export default function Dashboard() {
   // Transaction form type toggle: 'expense' | 'income'
   const [txType, setTxType] = useState('expense');
   const [showAutoCalcModal, setShowAutoCalcModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const fileInputRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
@@ -198,6 +201,14 @@ export default function Dashboard() {
           <p className="text-muted small m-0">Monitor income cash flow, expense categories, budget thresholds, and wealth building</p>
         </div>
         <div className="d-flex gap-2 flex-wrap">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-xs d-flex align-items-center gap-1"
+            onClick={() => setShowCurrencyModal(true)}
+            title="Convert currencies & view exchange rates"
+          >
+            <i className="bi bi-currency-exchange text-primary"></i> Exchange Tool
+          </button>
           <Link to="/dashboard/savings" className="btn btn-sm btn-warning rounded-pill px-3 fw-semibold text-dark shadow-sm">
             <i className="bi bi-piggy-bank-fill me-1"></i> How to Save Money
           </Link>
@@ -227,6 +238,11 @@ export default function Dashboard() {
             <h3 className={`fw-bold mb-1 ${netSavings >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatAmount(netSavings)}
             </h3>
+            {dualCurrencyEnabled && (
+              <div className="small text-muted fw-semibold mb-1" style={{ fontSize: '12px' }}>
+                ≈ {formatAmount(netSavings, currency === 'USD' ? 'KHR' : 'USD')}
+              </div>
+            )}
             <div className="text-muted small">
               {totalIncome > 0 ? `${savingsRate.toFixed(0)}% retained as savings` : 'Log income to measure flow'}
             </div>
@@ -241,6 +257,11 @@ export default function Dashboard() {
               <span className="badge rounded-pill bg-primary-subtle text-primary">{incomes.length} Entries</span>
             </div>
             <h3 className="fw-bold text-primary mb-1">{formatAmount(totalIncome)}</h3>
+            {dualCurrencyEnabled && (
+              <div className="small text-muted fw-semibold mb-1" style={{ fontSize: '12px' }}>
+                ≈ {formatAmount(totalIncome, currency === 'USD' ? 'KHR' : 'USD')}
+              </div>
+            )}
             <div className="text-muted small">Salary, freelance & investments</div>
           </div>
         </div>
@@ -253,6 +274,11 @@ export default function Dashboard() {
               <span className="badge rounded-pill bg-secondary-subtle text-secondary">{expenses.length} Txns</span>
             </div>
             <h3 className="fw-bold text-danger mb-1">{formatAmount(totalExpense)}</h3>
+            {dualCurrencyEnabled && (
+              <div className="small text-muted fw-semibold mb-1" style={{ fontSize: '12px' }}>
+                ≈ {formatAmount(totalExpense, currency === 'USD' ? 'KHR' : 'USD')}
+              </div>
+            )}
             <div className="text-muted small">
               {totalBudgetLimit > 0 ? `${Math.round((totalExpense / totalBudgetLimit) * 100)}% of budget limit` : 'No budget set'}
             </div>
@@ -763,6 +789,12 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* MODAL: CURRENCY CONVERTER & EXCHANGE TOOL */}
+      <CurrencyConverterModal
+        isOpen={showCurrencyModal}
+        onClose={() => setShowCurrencyModal(false)}
+      />
     </div>
   );
 }

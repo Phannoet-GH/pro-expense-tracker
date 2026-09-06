@@ -35,7 +35,7 @@ export default function AutoExpenseCalculator({ onApplied, preselectedGoal = nul
 
   // Dynamic Auto-Compensate Mode (When enabled, increasing one category automatically decreases 'Other')
   const [autoCompensate, setAutoCompensate] = useState(true);
-  const [bufferCategory, setBufferCategory] = useState('Other');
+  const bufferCategory = 'Other';
   const [lockedCategories, setLockedCategories] = useState({
     'Room': false,
     'Food & Drink': false,

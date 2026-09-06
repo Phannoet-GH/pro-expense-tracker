@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { UserContext } from '../context/UserContext';
@@ -6,14 +6,20 @@ import { useBilling } from '../context/BillingContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import PricingModal from './PricingModal';
+import CurrencyConverterModal from './CurrencyConverterModal';
+import { getCurrencyMeta } from '../utils/currency';
 
 export default function Layout() {
-  const { netSavings, formatAmount } = useContext(ExpenseContext);
+  const { netSavings, formatAmount, currency } = useContext(ExpenseContext);
   const { currentUser, logout } = useContext(UserContext);
   const { tier, isPro, openPricingModal } = useBilling();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   const { lang, toggleLang, t } = useLanguage();
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  const activeCurrencyMeta = getCurrencyMeta(currency);
 
   const handleLogout = async () => {
     await logout();
@@ -21,9 +27,21 @@ export default function Layout() {
   };
 
   return (
-    <div className="d-flex bg-light" id="wrapper" style={{ minHeight: '100vh' }}>
+    <div className="d-flex bg-light position-relative" id="wrapper" style={{ minHeight: '100vh' }}>
+      {/* Mobile Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-md-none"
+          style={{ zIndex: 1040 }}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Client Sidebar */}
-      <div className="bg-dark text-white sidebar border-end border-secondary border-opacity-25" style={{ width: '260px', minWidth: '260px' }}>
+      <div
+        className={`bg-dark text-white sidebar border-end border-secondary border-opacity-25 d-flex flex-column ${mobileMenuOpen ? 'position-fixed top-0 start-0 h-100 z-3' : 'd-none d-md-flex'}`}
+        style={{ width: '260px', minWidth: '260px', zIndex: 1045 }}
+      >
         <div className="sidebar-heading fs-4 fw-bold text-center py-4 border-bottom border-secondary border-opacity-50">
           <i className="bi bi-wallet2 text-primary me-2"></i>SmartFinance
           <span className="badge bg-primary-subtle text-primary ms-1" style={{ fontSize: '10px' }}>PRO</span>
@@ -191,14 +209,35 @@ export default function Layout() {
       <div id="page-content-wrapper" className="w-100 overflow-auto" style={{ maxHeight: '100vh' }}>
         {/* Topbar */}
         <nav className="navbar navbar-expand-lg navbar-light bg-white py-3 px-4 shadow-sm border-bottom">
-          <div className="d-flex align-items-center flex-wrap gap-3">
+          <div className="d-flex align-items-center flex-wrap gap-2">
+            {/* Mobile Hamburger Drawer Button */}
+            <button
+              className="btn btn-sm btn-outline-secondary d-md-none rounded-circle me-1"
+              style={{ width: '36px', height: '36px' }}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title="Toggle Menu"
+            >
+              <i className="bi bi-list fs-5"></i>
+            </button>
+
             <h2 className="fs-5 m-0 fw-bold" style={{ color: 'var(--text-primary)' }}>{t('personalWealthManager')}</h2>
             <span className={`badge rounded-pill ${netSavings >= 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'} px-3 py-1 fw-bold`} style={{ fontSize: '0.8rem' }}>
               Net Cash Flow: {formatAmount(netSavings)}
             </span>
           </div>
 
-          <div className="ms-auto d-flex align-items-center gap-3">
+          <div className="ms-auto d-flex align-items-center gap-2 gap-sm-3">
+            {/* Currency Converter Quick Trigger Button */}
+            <button
+              onClick={() => setShowCurrencyModal(true)}
+              className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-sm"
+              title="Open Currency Exchange Calculator"
+            >
+              <span className="me-1">{activeCurrencyMeta.flag}</span>
+              <span className="fw-bold">{activeCurrencyMeta.code}</span>
+              <span className="text-muted d-none d-sm-inline">({activeCurrencyMeta.symbol})</span>
+              <i className="bi bi-arrow-repeat ms-1" style={{ fontSize: '11px' }}></i>
+            </button>
 
             {/* User Session Info Pill */}
             <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-light">
@@ -231,6 +270,12 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+
+      {/* Global Currency Exchange Calculator Modal */}
+      <CurrencyConverterModal
+        isOpen={showCurrencyModal}
+        onClose={() => setShowCurrencyModal(false)}
+      />
 
       {/* Global Subscription Pricing & Upgrade Modal */}
       <PricingModal />

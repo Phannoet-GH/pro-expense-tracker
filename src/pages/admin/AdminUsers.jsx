@@ -22,6 +22,7 @@ export default function AdminUsers() {
   const [approveProOnReply, setApproveProOnReply] = useState(true);
   const [sendingReply, setSendingReply] = useState(false);
   const [replyFeedback, setReplyFeedback] = useState(null);
+  const [selectedProof, setSelectedProof] = useState(null);
 
   const fetchEmailStatus = async () => {
     if (!token) return;
@@ -355,7 +356,7 @@ export default function AdminUsers() {
                 <tr>
                   <th>Client</th>
                   <th>Plan &amp; Price</th>
-                  <th>Payment Method</th>
+                  <th>Payment &amp; Slip</th>
                   <th>Message / Notes</th>
                   <th>Date</th>
                   <th>Status</th>
@@ -374,7 +375,23 @@ export default function AdminUsers() {
                         {req.plan?.toUpperCase()} ({req.price})
                       </span>
                     </td>
-                    <td>{req.payment_method || 'Standard'}</td>
+                    <td>
+                      <div className="fw-semibold text-dark">{req.payment_method || 'Standard'}</div>
+                      {req.payment_proof ? (
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-primary rounded-pill px-2 py-0 mt-1 d-inline-flex align-items-center gap-1 shadow-2xs"
+                          style={{ fontSize: '11px' }}
+                          onClick={() => setSelectedProof(req)}
+                          title="Click to view payment slip"
+                        >
+                          <i className="bi bi-file-earmark-image-fill text-primary"></i>
+                          <span>View Slip</span>
+                        </button>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '11px' }}>No slip</span>
+                      )}
+                    </td>
                     <td className="text-muted" style={{ maxWidth: '220px' }}>
                       <div className="text-truncate" title={req.message}>{req.message || '—'}</div>
                       {req.admin_reply && (
@@ -603,6 +620,45 @@ export default function AdminUsers() {
                           </div>
                         </div>
                       )}
+
+                      {replyModalRequest.payment_proof && (
+                        <div className="col-12 mt-2 pt-2 border-top">
+                          <div className="d-flex justify-content-between align-items-center mb-1">
+                            <span className="text-muted small fw-semibold">
+                              <i className="bi bi-file-earmark-image-fill text-primary me-1"></i>
+                              Attached Payment Slip / Proof ({replyModalRequest.receipt_file_name || 'slip.png'}):
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0"
+                              style={{ fontSize: '11px' }}
+                              onClick={() => setSelectedProof(replyModalRequest)}
+                            >
+                              <i className="bi bi-arrows-fullscreen me-1"></i> Fullscreen
+                            </button>
+                          </div>
+                          {replyModalRequest.payment_proof.startsWith('data:image/') ? (
+                            <div className="text-center p-2 bg-white rounded border">
+                              <img
+                                src={replyModalRequest.payment_proof}
+                                alt="Payment Slip"
+                                className="img-fluid rounded border shadow-xs"
+                                style={{ maxHeight: '180px', objectFit: 'contain', cursor: 'pointer' }}
+                                onClick={() => setSelectedProof(replyModalRequest)}
+                                title="Click to view full size"
+                              />
+                            </div>
+                          ) : (
+                            <a
+                              href={replyModalRequest.payment_proof}
+                              download={replyModalRequest.receipt_file_name || 'payment_proof'}
+                              className="btn btn-sm btn-outline-primary rounded-pill px-3 mt-1"
+                            >
+                              <i className="bi bi-download me-1"></i> Download {replyModalRequest.receipt_file_name || 'Receipt Document'}
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -728,6 +784,71 @@ export default function AdminUsers() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Proof Fullscreen Lightbox Modal */}
+      {selectedProof && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1080 }}
+          onClick={() => setSelectedProof(null)}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-content border-0 rounded-4 shadow-24 overflow-hidden bg-white">
+              <div className="modal-header border-0 px-4 py-3 bg-light">
+                <div>
+                  <h6 className="modal-title fw-bold text-dark d-flex align-items-center gap-2 mb-0">
+                    <i className="bi bi-file-earmark-image-fill text-primary"></i>
+                    Payment Proof &bull; {selectedProof.user_name} ({selectedProof.user_email})
+                  </h6>
+                  <span className="text-muted small">
+                    {selectedProof.plan?.toUpperCase()} ({selectedProof.price}) &bull; {selectedProof.receipt_file_name || 'receipt_screenshot'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setSelectedProof(null)}
+                ></button>
+              </div>
+              <div className="modal-body text-center p-4 bg-dark bg-opacity-10">
+                {selectedProof.payment_proof?.startsWith('data:image/') ? (
+                  <img
+                    src={selectedProof.payment_proof}
+                    alt="Payment Slip"
+                    className="img-fluid rounded shadow border"
+                    style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <div className="p-4 bg-white rounded-3 shadow-xs">
+                    <i className="bi bi-file-earmark-pdf fs-1 text-danger mb-2"></i>
+                    <div className="fw-bold">{selectedProof.receipt_file_name || 'Document File'}</div>
+                    <a
+                      href={selectedProof.payment_proof}
+                      download={selectedProof.receipt_file_name || 'proof'}
+                      className="btn btn-primary rounded-pill px-4 mt-3"
+                    >
+                      <i className="bi bi-download me-1"></i> Download File
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer border-0 px-4 py-3 bg-light d-flex justify-content-between">
+                <span className="text-muted small">
+                  Request ID: <code className="text-dark">{selectedProof.id}</code>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary rounded-pill px-4"
+                  onClick={() => setSelectedProof(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

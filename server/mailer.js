@@ -277,10 +277,13 @@ export async function sendProUpgradeNotification({
   price = '$1/mo',
   payment_method = 'Standard Inquiry',
   message = '',
+  payment_proof = null,
+  receipt_file_name = null,
+  autoReplyMessage = '',
   requestId = ''
 }) {
   reloadEnv();
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
   const senderUser = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
 
@@ -381,6 +384,22 @@ export async function sendProUpgradeNotification({
               </a>
             </div>
 
+            ${payment_proof ? `
+            <!-- Client Payment Proof Slip / Image Attachment -->
+            <div style="background: #ffffff; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
+              <div style="font-weight: 700; color: #1e293b; margin-bottom: 12px; font-size: 15px;">
+                📸 Attached Payment Slip / Transfer Screenshot (${receipt_file_name || 'receipt.png'}):
+              </div>
+              ${payment_proof.startsWith('data:image/') ? `
+                <img src="${payment_proof}" alt="Payment Proof" style="max-width: 100%; max-height: 480px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 10px rgba(0,0,0,0.08);" />
+              ` : `
+                <div style="background: #eff6ff; padding: 14px; border-radius: 8px; color: #1e40af; font-size: 14px;">
+                  📄 Document file uploaded: <strong>${receipt_file_name || 'payment_proof'}</strong>
+                </div>
+              `}
+            </div>
+            ` : ''}
+
             <p style="font-size: 14px; color: #475569; margin: 0 0 16px;">
               When payment is verified, click below to open your <strong>Admin Dashboard &gt; User Management</strong> to approve this upgrade:
             </p>
@@ -411,8 +430,10 @@ export async function sendProUpgradeNotification({
     results.adminError = err.message;
   }
 
-  // 2. Confirmation Receipt Email to Client
+  // 2. Automated Reply / Confirmation Receipt to Client
   try {
+    const clientAutoReplyText = autoReplyMessage || `Hi ${name},\n\nThank you for choosing SmartFinance PRO (${price})! I have received your upgrade request${payment_proof ? ' and attached payment slip' : ''}.\n\nOur system is verifying your payment details. As soon as verification is confirmed, your PRO tier (unlimited receipt scans, CPA tax deduction tracking, and financial forecasting) will be active!\n\nIf you have any questions, feel free to reply directly to this email.\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator (${adminEmail})`;
+
     const clientHtml = `
       <!DOCTYPE html>
       <html>
@@ -421,22 +442,28 @@ export async function sendProUpgradeNotification({
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
           .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-          .header { background: linear-gradient(135deg, #2563eb, #3b82f6); padding: 32px 24px; color: #ffffff; text-align: center; }
+          .header { background: linear-gradient(135deg, #2563eb, #7c3aed); padding: 32px 24px; color: #ffffff; text-align: center; }
           .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+          .header p { margin: 6px 0 0; opacity: 0.9; font-size: 14px; }
           .content { padding: 28px 24px; font-size: 15px; line-height: 1.6; color: #334155; }
-          .summary-card { background: #f1f5f9; border-radius: 12px; padding: 18px; margin: 20px 0; }
+          .message-box { background: #eff6ff; border-left: 4px solid #2563eb; border-radius: 8px; padding: 18px 20px; margin: 20px 0; color: #1e293b; font-size: 15px; white-space: pre-wrap; line-height: 1.6; }
+          .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; }
           .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+          .cta-btn { display: block; width: 100%; box-sizing: border-box; text-align: center; background: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 15px; margin-top: 20px; }
           .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>Upgrade Request Received!</h1>
+            <h1>💬 Auto-Reply from Administrator</h1>
+            <p>SmartFinance PRO &bull; Support &amp; Verification</p>
           </div>
           <div class="content">
             <p>Hi <strong>${name}</strong>,</p>
-            <p>Thank you for requesting an upgrade to <strong>SmartFinance PRO</strong>! We have received your inquiry and our administrator will review your payment details shortly.</p>
+            <p>Thank you for submitting your request for <strong>SmartFinance PRO (${price})</strong>. Here is your automated confirmation reply:</p>
+
+            <div class="message-box">${clientAutoReplyText}</div>
 
             <div class="summary-card">
               <div class="summary-row">
@@ -447,17 +474,26 @@ export async function sendProUpgradeNotification({
                 <span>Payment Method:</span>
                 <strong>${payment_method}</strong>
               </div>
+              ${payment_proof ? `
+              <div class="summary-row">
+                <span>Payment Slip:</span>
+                <span style="color: #059669; font-weight: 600;">✓ Attached (${receipt_file_name || 'receipt.png'})</span>
+              </div>
+              ` : ''}
               <div class="summary-row">
                 <span>Request ID:</span>
                 <span style="font-family: monospace;">${requestId}</span>
               </div>
             </div>
 
-            <p>Our administrator is reviewing your payment. As soon as verification is complete, all PRO features (tax deduction tracking, unlimited AI scans, and advanced reports) will be unlocked automatically on your account.</p>
-            <p>If you have any questions or need to follow up, feel free to reply directly to this email.</p>
+            <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
+              💡 <strong>Need to reply?</strong> You can hit <strong>Reply</strong> in your email app to write directly to ${adminEmail}.
+            </p>
+
+            <a href="http://localhost:5173/dashboard" class="cta-btn">Open SmartFinance Portal</a>
           </div>
           <div class="footer">
-            Pro Expense Tracker Team &bull; Phnom Penh, Cambodia
+            SmartFinance PRO Team &bull; Direct Support from ${adminEmail}
           </div>
         </div>
       </body>
@@ -465,18 +501,18 @@ export async function sendProUpgradeNotification({
     `;
 
     await sendMailWithFallback({
-      from: `"Pro Expense Tracker" <${senderUser}>`,
+      from: `"Pet Phannoet (SmartFinance)" <${senderUser}>`,
       to: email,
       replyTo: adminEmail,
-      subject: `✨ We received your PRO Upgrade request - Pro Expense Tracker`,
+      subject: `💬 [Auto-Reply from Pet Phannoet] Regarding your SmartFinance PRO Request`,
       html: clientHtml,
-      text: `Hi ${name},\n\nWe received your PRO Upgrade request for ${plan} (${price}). Our administrator (${adminEmail}) is verifying your payment and will activate your PRO tier shortly!\n\nRequest ID: ${requestId}\nIf you have any questions, feel free to reply directly to this email.`
+      text: clientAutoReplyText
     });
 
-    console.log(`✅ [Mailer] Confirmation receipt sent to client ${email}`);
+    console.log(`✅ [Mailer] Auto-reply sent to client ${email}`);
     results.clientSent = true;
   } catch (err) {
-    console.error(`❌ [Mailer] Failed to send client confirmation to ${email}:`, err.message);
+    console.error(`❌ [Mailer] Failed to send auto-reply to client ${email}:`, err.message);
     results.clientError = err.message;
   }
 

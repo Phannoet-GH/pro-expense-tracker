@@ -69,6 +69,91 @@ export default function Dashboard() {
     setReplyDismissed(true);
   };
 
+  const proofInputRef = useRef(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofSuccessMsg, setProofSuccessMsg] = useState('');
+
+  const handleUploadProofFromDashboard = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !inquiryReply) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Selected file is too large (max 8MB)');
+      return;
+    }
+
+    setUploadingProof(true);
+    setProofSuccessMsg('');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await apiFetch('/api/client/inquiry-proof', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            requestId: inquiryReply.id,
+            payment_proof: reader.result,
+            receipt_file_name: file.name
+          })
+        });
+        const { ok } = await parseResponse(res);
+        if (ok) {
+          setInquiryReply(prev => ({ ...prev, payment_proof: reader.result, receipt_file_name: file.name }));
+          setProofSuccessMsg('Payment slip uploaded successfully to admin!');
+          setTimeout(() => setProofSuccessMsg(''), 5000);
+        }
+      } catch (err) {
+        console.error('Error uploading proof:', err);
+      } finally {
+        setUploadingProof(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUseDefaultProof = async () => {
+    try {
+      setUploadingProof(true);
+      const response = await fetch('/images/aba-khqr.png');
+      const blob = await response.blob();
+      const file = new File([blob], 'aba-khqr-petphannoet.png', { type: 'image/png' });
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await apiFetch('/api/client/inquiry-proof', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              requestId: inquiryReply?.id,
+              payment_proof: reader.result,
+              receipt_file_name: file.name
+            })
+          });
+          const { ok } = await parseResponse(res);
+          if (ok) {
+            setInquiryReply(prev => ({ ...prev, payment_proof: reader.result, receipt_file_name: file.name }));
+            setProofSuccessMsg('Default ABA payment slip attached successfully!');
+            setTimeout(() => setProofSuccessMsg(''), 5000);
+          }
+        } catch (err) {
+          console.error('Error uploading default proof:', err);
+        } finally {
+          setUploadingProof(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Could not load default proof:', err);
+      setUploadingProof(false);
+    }
+  };
+
   // Transaction form type toggle: 'expense' | 'income'
   const [txType, setTxType] = useState('expense');
   const [showAutoCalcModal, setShowAutoCalcModal] = useState(false);
@@ -300,15 +385,66 @@ export default function Dashboard() {
               {inquiryReply.admin_reply}
             </div>
 
-            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-1">
-              <div className="text-muted small">
-                <i className="bi bi-info-circle me-1"></i>
-                Regarding your <strong>{inquiryReply.plan?.toUpperCase()}</strong> inquiry ({inquiryReply.price})
+            {proofSuccessMsg && (
+              <div className="alert alert-success py-1 px-3 mb-3 small rounded-pill d-inline-flex align-items-center gap-1">
+                <i className="bi bi-check-circle-fill"></i> {proofSuccessMsg}
               </div>
-              <div className="d-flex gap-2 align-items-center">
+            )}
+
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-1">
+              <div className="text-muted small d-flex align-items-center gap-2 flex-wrap">
+                <span>
+                  <i className="bi bi-info-circle me-1"></i>
+                  Regarding your <strong>{inquiryReply.plan?.toUpperCase()}</strong> inquiry ({inquiryReply.price})
+                </span>
+                {inquiryReply.payment_proof && (
+                  <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                    <i className="bi bi-file-earmark-check-fill me-1"></i>
+                    Slip: {inquiryReply.receipt_file_name || 'Attached'}
+                  </span>
+                )}
+              </div>
+              <div className="d-flex gap-2 align-items-center flex-wrap">
+                <button
+                  type="button"
+                  disabled={uploadingProof}
+                  onClick={() => proofInputRef.current?.click()}
+                  className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                  title="Browse image or file to upload proof"
+                >
+                  {uploadingProof ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-paperclip me-1"></i>
+                      {inquiryReply.payment_proof ? 'Change Slip' : 'Upload Slip / Screenshot'}
+                    </>
+                  )}
+                </button>
+                <input
+                  type="file"
+                  ref={proofInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/jpg,application/pdf"
+                  className="d-none"
+                  onChange={handleUploadProofFromDashboard}
+                />
+
+                <button
+                  type="button"
+                  disabled={uploadingProof}
+                  onClick={handleUseDefaultProof}
+                  className="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold"
+                  title="Attach default ABA KHQR payment slip"
+                >
+                  <i className="bi bi-image me-1"></i> Default Image
+                </button>
+
                 <a
                   href={`mailto:${adminEmail}?subject=Re:%20SmartFinance%20PRO%20Inquiry%20Response`}
-                  className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                  className="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold"
                 >
                   <i className="bi bi-reply-fill me-1"></i> Reply via Email
                 </a>

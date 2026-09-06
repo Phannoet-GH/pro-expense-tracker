@@ -34,7 +34,8 @@ app.use(helmet({
 }));
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Global API rate limiting (180 requests per minute per IP)
 const apiLimiter = rateLimit({
@@ -454,7 +455,7 @@ app.post('/api/billing/upgrade-test', authMiddleware, async (req, res) => {
 // POST /api/billing/upgrade-request (User submits PRO purchase/upgrade request directed to admin gmail)
 app.post('/api/billing/upgrade-request', async (req, res) => {
   try {
-    const { name, email, payment_method, message, plan = 'pro', price = '$1/mo' } = req.body;
+    const { name, email, payment_method, message, plan = 'pro', price = '$1/mo', payment_proof, receipt_file_name } = req.body;
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required' });
     }
@@ -475,19 +476,35 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       } catch {}
     }
 
-    await pool.query(
-      `INSERT INTO upgrade_requests (id, user_id, user_name, user_email, plan, price, payment_method, message, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [requestId, userId, name, email, plan, price, payment_method || 'Standard Inquiry', message || '']
-    );
+    const targetAdminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
 
-    const targetAdminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
+    // Auto-generate instant reply from Pet Phannoet
+    const autoReplyMessage = `Hi ${name},\n\nThank you for choosing SmartFinance PRO (${price})! I have received your upgrade request${payment_proof ? ' and attached payment slip' : ''}.\n\nOur system is verifying your payment details. As soon as verification is confirmed, your PRO tier (unlimited receipt scans, CPA tax deduction tracking, and financial forecasting) will be active!\n\nIf you have any questions or need to send updated details, you can reply directly to this message or email me at ${targetAdminEmail}.\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator (${targetAdminEmail})`;
+
+    await pool.query(
+      `INSERT INTO upgrade_requests (id, user_id, user_name, user_email, plan, price, payment_method, message, payment_proof, receipt_file_name, admin_reply, replied_at, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'pending')`,
+      [
+        requestId,
+        userId,
+        name,
+        email,
+        plan,
+        price,
+        payment_method || 'Standard Inquiry',
+        message || '',
+        payment_proof || null,
+        receipt_file_name || null,
+        autoReplyMessage
+      ]
+    );
 
     // Respond immediately to client so UI never hangs or times out
     res.json({
       success: true,
       requestId,
-      message: `Your upgrade request has been submitted! A notification was sent to Admin (${targetAdminEmail}). Your PRO access will be activated upon verification.`,
+      autoReply: autoReplyMessage,
+      message: `Your upgrade request has been submitted! An automated reply has been dispatched from ${targetAdminEmail}.`,
       adminEmail: targetAdminEmail
     });
 
@@ -499,9 +516,12 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       price,
       payment_method,
       message,
+      payment_proof,
+      receipt_file_name,
+      autoReplyMessage,
       requestId
     }).then(mailResult => {
-      console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult?.success}`);
+      console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} with auto-reply for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult?.success}`);
     }).catch(err => {
       console.error('❌ [Mailer Background Error]:', err.message);
     });
@@ -627,9 +647,9 @@ app.get('/api/client/inquiry-reply', authMiddleware, async (req, res) => {
   try {
     const pool = getPool();
     const [rows] = await pool.query(
-      `SELECT id, plan, price, message, admin_reply, replied_at, status, created_at
+      `SELECT id, plan, price, message, payment_proof, receipt_file_name, admin_reply, replied_at, status, created_at
        FROM upgrade_requests
-       WHERE (user_id = ? OR user_email = ?) AND admin_reply IS NOT NULL
+       WHERE (user_id = ? OR user_email = ?)
        ORDER BY replied_at DESC, created_at DESC
        LIMIT 1`,
       [req.user.id, req.user.email]
@@ -647,6 +667,34 @@ app.get('/api/client/inquiry-reply', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Fetch client inquiry reply error:', error);
     res.status(500).json({ error: 'Failed to fetch reply' });
+  }
+});
+
+// POST /api/client/inquiry-proof (Client uploads or updates payment slip)
+app.post('/api/client/inquiry-proof', authMiddleware, async (req, res) => {
+  try {
+    const { requestId, payment_proof, receipt_file_name } = req.body;
+    if (!payment_proof) {
+      return res.status(400).json({ error: 'Image or file proof is required' });
+    }
+
+    const pool = getPool();
+    if (requestId) {
+      await pool.query(
+        'UPDATE upgrade_requests SET payment_proof = ?, receipt_file_name = ? WHERE id = ? AND (user_id = ? OR user_email = ?)',
+        [payment_proof, receipt_file_name || 'receipt.png', requestId, req.user.id, req.user.email]
+      );
+    } else {
+      await pool.query(
+        'UPDATE upgrade_requests SET payment_proof = ?, receipt_file_name = ? WHERE (user_id = ? OR user_email = ?) ORDER BY created_at DESC LIMIT 1',
+        [payment_proof, receipt_file_name || 'receipt.png', req.user.id, req.user.email]
+      );
+    }
+
+    res.json({ success: true, message: 'Payment proof uploaded successfully!' });
+  } catch (error) {
+    console.error('Upload proof error:', error);
+    res.status(500).json({ error: 'Failed to upload payment proof' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { useBilling } from '../context/BillingContext';
 import { UserContext } from '../context/UserContext';
 import { apiFetch, parseResponse } from '../utils/api';
@@ -30,6 +30,65 @@ export default function PricingModal() {
     message: ''
   });
 
+  // Payment proof image / file state
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptBase64, setReceiptBase64] = useState('');
+  const [receiptPreview, setReceiptPreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const processFile = (file) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setFeedbackMsg('Selected file is too large. Maximum size is 8MB.');
+      return;
+    }
+    setReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReceiptBase64(reader.result);
+      if (file.type.startsWith('image/')) {
+        setReceiptPreview(reader.result);
+      } else {
+        setReceiptPreview(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDropFile = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleRemoveFile = (e) => {
+    e?.stopPropagation();
+    setReceiptFile(null);
+    setReceiptBase64('');
+    setReceiptPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleUseDefaultImage = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    try {
+      const response = await fetch('/images/aba-khqr.png');
+      const blob = await response.blob();
+      const file = new File([blob], 'aba-khqr-petphannoet.png', { type: 'image/png' });
+      processFile(file);
+    } catch (err) {
+      console.warn('Could not load default payment proof:', err);
+    }
+  };
+
   if (!isPricingModalOpen) return null;
 
   // Handle direct request to admin
@@ -52,6 +111,8 @@ export default function PricingModal() {
           email: buyFormData.email,
           payment_method: buyFormData.payment_method,
           message: buyFormData.message,
+          payment_proof: receiptBase64 || null,
+          receipt_file_name: receiptFile?.name || null,
           plan: 'pro',
           price: interval === 'annual' ? '$5/year ($5/y)' : '$1/month ($1/m)'
         })
@@ -76,6 +137,9 @@ export default function PricingModal() {
     setShowBuyForm(false);
     setSubmittedSuccess(false);
     setFeedbackMsg('');
+    setReceiptFile(null);
+    setReceiptBase64('');
+    setReceiptPreview(null);
   };
 
   return (
@@ -340,10 +404,10 @@ export default function PricingModal() {
                 >
                   <i className="bi bi-check2-circle fs-1"></i>
                 </div>
-                <h4 className="fw-bold text-dark mb-2">Upgrade Request Sent!</h4>
-                <p className="text-muted small mx-auto mb-4" style={{ maxWidth: '440px' }}>
-                  Your request for <strong>SmartFinance PRO ({interval === 'annual' ? '$5/year' : '$1/month'})</strong> has been submitted. An email notification has been dispatched to{' '}
-                  <strong className="text-dark">{adminEmailDisplay || 'Admin Gmail'}</strong>.
+                <h4 className="fw-bold text-dark mb-2">Upgrade Request &amp; Auto-Reply Sent!</h4>
+                <p className="text-muted small mx-auto mb-4" style={{ maxWidth: '460px' }}>
+                  Your request for <strong>SmartFinance PRO ({interval === 'annual' ? '$5/year' : '$1/month'})</strong> has been submitted. An automated reply has been dispatched from{' '}
+                  <strong className="text-dark">{adminEmailDisplay || 'petphannoet@gmail.com'}</strong> and posted to your dashboard!
                 </p>
 
                 <div className="card bg-light border-0 rounded-4 p-3 mb-4 mx-auto text-start small" style={{ maxWidth: '420px' }}>
@@ -359,10 +423,19 @@ export default function PricingModal() {
                     <span className="text-muted">Plan:</span>
                     <strong className="text-primary">SmartFinance PRO ({interval === 'annual' ? '$5/yr' : '$1/mo'})</strong>
                   </div>
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Payment:</span>
                     <strong className="text-dark">{buyFormData.payment_method}</strong>
                   </div>
+                  {receiptFile && (
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="text-muted">Receipt Slip:</span>
+                      <span className="badge bg-success-subtle text-success border border-success-subtle">
+                        <i className="bi bi-file-earmark-check-fill me-1"></i>
+                        {receiptFile.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="d-flex justify-content-center">
@@ -435,6 +508,42 @@ export default function PricingModal() {
                     </select>
                   </div>
 
+                  {/* Official ABA KHQR Card for Pet Phannoet */}
+                  {buyFormData.payment_method === 'ABA Pay / KHQR' && (
+                    <div className="col-12">
+                      <div className="p-3 bg-white rounded-3 border text-center shadow-xs">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <span className="badge bg-primary rounded-pill px-2 py-1 small">
+                            <i className="bi bi-qr-code-scan me-1"></i> Scan &amp; Pay
+                          </span>
+                          <span className="fw-bold small text-dark">
+                            Beneficiary: PET PHANNOET
+                          </span>
+                        </div>
+                        <div className="my-2 d-flex justify-content-center">
+                          <img
+                            src="/images/aba-khqr.png"
+                            alt="ABA PAY KHQR - PET PHANNOET"
+                            className="img-fluid rounded-3 border shadow-xs"
+                            style={{ maxHeight: '220px', objectFit: 'contain' }}
+                          />
+                        </div>
+                        <div className="small text-muted mb-2">
+                          Scan with <strong>ABA Mobile</strong> or any <strong>KHQR Bank App</strong> to pay{' '}
+                          <strong className="text-primary">{interval === 'annual' ? '$5.00' : '$1.00'}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 shadow-2xs"
+                          onClick={handleUseDefaultImage}
+                          title="Attach this payment QR slip as your proof"
+                        >
+                          <i className="bi bi-paperclip me-1"></i> Use Default Image as Proof
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="col-12">
                     <label className="form-label small fw-semibold text-dark">
                       Message / Payment Reference to Admin
@@ -446,6 +555,110 @@ export default function PricingModal() {
                       value={buyFormData.message}
                       onChange={(e) => setBuyFormData({ ...buyFormData, message: e.target.value })}
                     ></textarea>
+                  </div>
+
+                  {/* Browse Image or File Upload for Payment Proof */}
+                  <div className="col-12">
+                    <label className="form-label small fw-semibold text-dark d-flex justify-content-between align-items-center">
+                      <span>
+                        <i className="bi bi-file-earmark-image-fill text-primary me-1"></i>
+                        Attach Payment Slip / Transfer Screenshot
+                      </span>
+                      {receiptFile ? (
+                        <span className="badge bg-success-subtle text-success small">
+                          <i className="bi bi-check-circle-fill me-1"></i> Slip Ready
+                        </span>
+                      ) : (
+                        <span className="text-muted small" style={{ fontSize: '11px' }}>Optional</span>
+                      )}
+                    </label>
+
+                    {!receiptFile ? (
+                      <div
+                        className={`border border-2 border-dashed rounded-3 p-3 text-center transition-all ${
+                          isDragging ? 'border-primary bg-primary-subtle' : 'border-secondary-subtle bg-light'
+                        }`}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={handleDropFile}
+                      >
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/png,image/jpeg,image/webp,image/jpg,application/pdf"
+                          className="d-none"
+                          onChange={handleFileSelect}
+                        />
+                        <div className="text-primary fs-3 mb-1">
+                          <i className="bi bi-cloud-arrow-up-fill"></i>
+                        </div>
+                        <div className="fw-semibold small text-dark">
+                          Click to browse image or drag &amp; drop payment screenshot
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '11px' }}>
+                          Supports PNG, JPG, WEBP, or PDF receipt (Max 8MB)
+                        </div>
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-primary rounded-pill px-3 py-1"
+                            onClick={handleUseDefaultImage}
+                          >
+                            <i className="bi bi-image me-1"></i> Use Default Image
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-light rounded-3 border d-flex align-items-center justify-content-between gap-3">
+                        <div className="d-flex align-items-center gap-3 overflow-hidden">
+                          {receiptPreview ? (
+                            <img
+                              src={receiptPreview}
+                              alt="Receipt Preview"
+                              className="rounded border shadow-xs"
+                              style={{ width: '56px', height: '56px', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div className="bg-primary-subtle text-primary rounded p-2 text-center" style={{ width: '56px', height: '56px' }}>
+                              <i className="bi bi-file-earmark-pdf fs-3"></i>
+                            </div>
+                          )}
+                          <div className="overflow-hidden">
+                            <div className="fw-bold small text-dark text-truncate">{receiptFile.name}</div>
+                            <div className="text-muted" style={{ fontSize: '11px' }}>
+                              {(receiptFile.size / 1024).toFixed(1)} KB &bull; Payment proof attached
+                            </div>
+                          </div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            Change
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger rounded-circle"
+                            style={{ width: '32px', height: '32px', padding: 0 }}
+                            onClick={handleRemoveFile}
+                            title="Remove attachment"
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/png,image/jpeg,image/webp,image/jpg,application/pdf"
+                          className="d-none"
+                          onChange={handleFileSelect}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -252,7 +252,7 @@ export default function SavingsHub() {
 
           <div className="d-flex gap-2 flex-wrap">
             <button
-              className="btn btn-light rounded-pill px-4 fw-bold text-primary shadow-sm"
+              className="btn btn-hero-cta rounded-pill px-4 fw-bold shadow-sm d-inline-flex align-items-center"
               onClick={() => {
                 setEditingGoalId(null);
                 setGoalForm({
@@ -296,19 +296,19 @@ export default function SavingsHub() {
       {/* Navigation Pills */}
       <div className="d-flex gap-2 overflow-auto pb-2 mb-4" style={{ scrollbarWidth: 'none' }}>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === '503020' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === '503020' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('503020')}
         >
           <i className="bi bi-pie-chart-fill me-2"></i>The 50/30/20 Rule
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'goals' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'goals' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('goals')}
         >
           <i className="bi bi-bullseye me-2"></i>Savings Goals ({savingsGoals.length})
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'auto-planner' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'auto-planner' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => {
             setPreselectedGoalForCalc(null);
             setActiveTab('auto-planner');
@@ -317,25 +317,25 @@ export default function SavingsHub() {
           <i className="bi bi-calculator-fill me-2 text-warning"></i>Auto Expense Planner
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'emergency' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'emergency' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('emergency')}
         >
           <i className="bi bi-shield-check me-2"></i>Emergency Fund Calculator
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'compound' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'compound' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('compound')}
         >
           <i className="bi bi-graph-up-arrow me-2"></i>Compound Interest Simulator
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'challenge' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'challenge' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('challenge')}
         >
           <i className="bi bi-trophy-fill me-2"></i>52-Week Challenge
         </button>
         <button
-          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'tips' ? 'btn-primary shadow-sm' : 'btn-white bg-white border text-secondary'}`}
+          className={`btn rounded-pill px-4 fw-semibold text-nowrap ${activeTab === 'tips' ? 'btn-primary shadow-sm' : 'btn-white'}`}
           onClick={() => setActiveTab('tips')}
         >
           <i className="bi bi-lightbulb-fill me-2"></i>Top 10 Saving Rules
@@ -663,14 +663,14 @@ export default function SavingsHub() {
                             <i className="bi bi-cash-stack me-1"></i> Deposit Money
                           </button>
                           <button
-                            className="btn btn-sm btn-light rounded-pill px-3 text-secondary"
+                            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
                             onClick={() => depositToGoal(goal.id, 50)}
                             title="Quick deposit +$50"
                           >
                             +$50
                           </button>
                           <button
-                            className="btn btn-sm btn-light rounded-pill px-3 text-secondary"
+                            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
                             onClick={() => depositToGoal(goal.id, 100)}
                             title="Quick deposit +$100"
                           >

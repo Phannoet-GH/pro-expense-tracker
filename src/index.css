@@ -240,6 +240,72 @@ body {
   color: var(--text-primary) !important;
 }
 
+/* Hero banner CTA buttons — always crisp and ultra-high contrast on dark gradients */
+.btn-hero-cta {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease !important;
+}
+
+.btn-hero-cta:hover {
+  background-color: #f8fafc !important;
+  color: #1e3c72 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
+}
+
+.btn-hero-cta i {
+  color: #2563eb !important;
+}
+
+/* Ensure buttons inside dark cards/banners maintain full contrast in both modes */
+.text-white .btn-light,
+[data-theme="dark"] .text-white .btn-light,
+[data-theme="dark"] .card.text-white .btn-light,
+[data-theme="dark"] [style*="gradient"] .btn-light,
+[data-theme="dark"] [style*="linear-gradient"] .btn-light {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.text-white .btn-light.text-primary,
+[data-theme="dark"] .text-white .btn-light.text-primary {
+  color: #1d4ed8 !important;
+}
+
+.text-white .btn-light:hover,
+[data-theme="dark"] .text-white .btn-light:hover,
+[data-theme="dark"] .card.text-white .btn-light:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Themed white pill buttons for tabs and filters */
+.btn-white {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-white:hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Vibrant, readable primary text in dark mode for stats, links & labels */
+[data-theme="dark"] .text-primary:not(.btn-hero-cta):not(.btn-hero-cta *):not(.text-white .btn-light):not(.text-white .btn-light *) {
+  color: #60a5fa !important;
+}
+
 [data-theme="dark"] .alert-danger {
   background-color: rgba(239,68,68,0.15) !important;
   border-color: rgba(239,68,68,0.3) !important;

@@ -270,6 +270,24 @@ async function sendMailWithFallback(mailOptions) {
   if (primaryError) throw primaryError;
 }
 
+export function resolvePortalUrl(baseUrl) {
+  reloadEnv();
+  const envUrl = process.env.APP_URL || process.env.CLIENT_URL || process.env.BASE_URL || process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null);
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  if (baseUrl && typeof baseUrl === 'string' && baseUrl.trim()) {
+    const trimmed = baseUrl.trim().replace(/\/+$/, '');
+    if (!trimmed.includes('localhost') && !trimmed.includes('127.0.0.1')) {
+      return trimmed;
+    }
+  }
+  if (baseUrl && typeof baseUrl === 'string' && baseUrl.trim()) {
+    return baseUrl.trim().replace(/\/+$/, '');
+  }
+  return '';
+}
+
 export async function sendProUpgradeNotification({
   name,
   email,
@@ -280,7 +298,8 @@ export async function sendProUpgradeNotification({
   payment_proof = null,
   receipt_file_name = null,
   autoReplyMessage = '',
-  requestId = ''
+  requestId = '',
+  baseUrl = ''
 }) {
   reloadEnv();
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
@@ -404,7 +423,7 @@ export async function sendProUpgradeNotification({
               When payment is verified, click below to open your <strong>Admin Dashboard &gt; User Management</strong> to approve this upgrade:
             </p>
 
-            <a href="http://localhost:5173/admin/users" class="cta-btn">Open Admin Dashboard &amp; Approve PRO</a>
+            <a href="${resolvePortalUrl(baseUrl) ? `${resolvePortalUrl(baseUrl)}/admin/users` : '/admin/users'}" class="cta-btn">Open Admin Dashboard &amp; Approve PRO</a>
           </div>
           <div class="footer">
             Pro Expense Tracker &bull; Automated System Notification
@@ -490,7 +509,7 @@ export async function sendProUpgradeNotification({
               💡 <strong>Need to reply?</strong> You can hit <strong>Reply</strong> in your email app to write directly to ${adminEmail}.
             </p>
 
-            <a href="http://localhost:5173/dashboard" class="cta-btn">Open SmartFinance Portal</a>
+            <a href="${resolvePortalUrl(baseUrl) ? `${resolvePortalUrl(baseUrl)}/dashboard` : '/dashboard'}" class="cta-btn">Open SmartFinance Portal</a>
           </div>
           <div class="footer">
             SmartFinance PRO Team &bull; Direct Support from ${adminEmail}
@@ -526,12 +545,15 @@ export async function sendProUpgradeNotification({
 /**
  * Dispatches an email to the client when Admin approves their PRO upgrade.
  */
-export async function sendProApprovedNotification({ name, email }) {
+export async function sendProApprovedNotification({ name, email, plan = 'pro', baseUrl = '' }) {
   reloadEnv();
   const senderUser = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
 
-  if (!senderUser || !pass) return;
+  if (!senderUser || !pass) {
+    console.warn('⚠️ [Mailer] Cannot send approval email: credentials missing.');
+    return { success: false, reason: 'credentials_missing' };
+  }
 
   try {
     const approvedHtml = `
@@ -545,8 +567,7 @@ export async function sendProApprovedNotification({ name, email }) {
           .header { background: linear-gradient(135deg, #10b981, #059669); padding: 32px 24px; color: #ffffff; text-align: center; }
           .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
           .content { padding: 28px 24px; font-size: 15px; line-height: 1.6; color: #334155; }
-          .feature-list { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin: 20px 0; color: #166534; }
-          .feature-list li { margin: 8px 0; }
+          .feature-list { background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
           .cta-btn { display: block; width: 100%; box-sizing: border-box; text-align: center; background: #10b981; color: #ffffff !important; text-decoration: none; padding: 14px 20px; border-radius: 10px; font-weight: 600; font-size: 15px; margin-top: 20px; }
           .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; }
         </style>
@@ -570,7 +591,7 @@ export async function sendProApprovedNotification({ name, email }) {
               </ul>
             </div>
 
-            <a href="http://localhost:5173/dashboard" class="cta-btn">Start Using PRO Features</a>
+            <a href="${resolvePortalUrl(baseUrl) ? `${resolvePortalUrl(baseUrl)}/dashboard` : '/dashboard'}" class="cta-btn">Start Using PRO Features</a>
           </div>
           <div class="footer">
             Pro Expense Tracker Team &bull; Enjoy your financial clarity!
@@ -605,12 +626,19 @@ export async function sendAdminReplyToClient({
   replyMessage,
   subject,
   plan = 'pro',
-  price = '$1/mo',
-  requestId = ''
+  price = '',
+  requestId = '',
+  baseUrl = ''
 }) {
   reloadEnv();
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
-  const senderUser = process.env.GMAIL_USER || 'petphannoet@gmail.com';
+  const senderUser = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  if (!senderUser || !pass) {
+    console.warn('⚠️ [Mailer] Cannot send admin reply: credentials missing.');
+    return { success: false, reason: 'credentials_missing' };
+  }
 
   const replyHtml = `
     <!DOCTYPE html>
@@ -645,7 +673,7 @@ export async function sendAdminReplyToClient({
             💡 <strong>Need to reply?</strong> You can hit <strong>Reply</strong> in your email app to respond directly to ${adminEmail}.
           </p>
 
-          <a href="http://localhost:5173/dashboard" class="cta-btn">Open SmartFinance Portal</a>
+          <a href="${resolvePortalUrl(baseUrl) ? `${resolvePortalUrl(baseUrl)}/dashboard` : '/dashboard'}" class="cta-btn">Open SmartFinance Portal</a>
         </div>
         <div class="footer">
           SmartFinance PRO &bull; Direct Support from ${adminEmail}

@@ -5,7 +5,7 @@ import { ExpenseContext } from '../../context/ExpenseContext';
 
 export default function AdminLayout() {
   const { currentUser, logout } = useContext(UserContext);
-  const { dbStatus, dbInfo, refreshFromDb } = useContext(ExpenseContext);
+  const { dbStatus, refreshFromDb } = useContext(ExpenseContext);
   const navigate = useNavigate();
 
   const handleLogout = async () => {

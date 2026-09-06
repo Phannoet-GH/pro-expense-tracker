@@ -508,6 +508,11 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       adminEmail: targetAdminEmail
     });
 
+    const origin = req.get('origin');
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const requestBaseUrl = origin || (host ? `${protocol}://${host}` : null);
+
     // Dispatch email notifications asynchronously in background
     sendProUpgradeNotification({
       name,
@@ -519,7 +524,8 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       payment_proof,
       receipt_file_name,
       autoReplyMessage,
-      requestId
+      requestId,
+      baseUrl: requestBaseUrl
     }).then(mailResult => {
       console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} with auto-reply for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult?.success}`);
     }).catch(err => {
@@ -562,11 +568,17 @@ app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, 
       [periodEnd, request.user_email, request.user_id]
     );
 
+    const origin = req.get('origin');
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const requestBaseUrl = origin || (host ? `${protocol}://${host}` : null);
+
     // Send congratulatory activation email to client asynchronously
     sendProApprovedNotification({
       name: request.user_name,
       email: request.user_email,
-      plan: request.plan
+      plan: request.plan,
+      baseUrl: requestBaseUrl
     }).catch(err => console.warn('Could not send approval notification email:', err.message));
 
     res.json({
@@ -613,6 +625,11 @@ app.post('/api/admin/upgrade-requests/:id/reply', authMiddleware, adminOnly, asy
       );
     }
 
+    const origin = req.get('origin');
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const requestBaseUrl = origin || (host ? `${protocol}://${host}` : null);
+
     // Send reply email asynchronously in background
     const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
     sendAdminReplyToClient({
@@ -622,7 +639,8 @@ app.post('/api/admin/upgrade-requests/:id/reply', authMiddleware, adminOnly, asy
       subject: subject || `💬 [Reply from Pet Phannoet] Regarding your SmartFinance PRO Inquiry`,
       plan: request.plan,
       price: request.price,
-      requestId: request.id
+      requestId: request.id,
+      baseUrl: requestBaseUrl
     }).then(mailResult => {
       console.log(`✉️ [Admin Reply] Delivered message from ${adminEmail} to client ${request.user_email}. Success: ${mailResult?.success}`);
     }).catch(err => {

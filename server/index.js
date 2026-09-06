@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDatabase, getPool } from './db.js';
+import { sendProUpgradeNotification, sendProApprovedNotification, testGmailConnection } from './mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -460,8 +461,10 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET);
-        userId = decoded.id;
+        const [userRows] = await pool.query('SELECT id FROM users WHERE auth_token = ?', [token]);
+        if (userRows.length > 0) {
+          userId = userRows[0].id;
+        }
       } catch {}
     }
 
@@ -471,13 +474,26 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       [requestId, userId, name, email, plan, price, payment_method || 'Standard Inquiry', message || '']
     );
 
-    console.log(`📩 [PRO Upgrade Request] Received from ${name} (${email}) for admin@gmail.com. Price: ${price}, Method: ${payment_method}, Msg: ${message}`);
+    // Send email notification to Admin Gmail and confirmation to client
+    const mailResult = await sendProUpgradeNotification({
+      name,
+      email,
+      plan,
+      price,
+      payment_method,
+      message,
+      requestId
+    });
+
+    const targetAdminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
+    console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult.success}`);
 
     res.json({
       success: true,
       requestId,
-      message: 'Your upgrade request has been sent to Admin (admin@gmail.com)! Your PRO access will be activated upon verification.',
-      adminEmail: 'admin@gmail.com'
+      message: `Your upgrade request has been submitted! A notification was sent to Admin (${targetAdminEmail}). Your PRO access will be activated upon verification.`,
+      adminEmail: targetAdminEmail,
+      emailSent: mailResult.success
     });
   } catch (error) {
     console.error('Upgrade request error:', error);
@@ -516,6 +532,13 @@ app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, 
       [periodEnd, request.user_email, request.user_id]
     );
 
+    // Send congratulatory activation email to client asynchronously
+    sendProApprovedNotification({
+      name: request.user_name,
+      email: request.user_email,
+      plan: request.plan
+    }).catch(err => console.warn('Could not send approval notification email:', err.message));
+
     res.json({
       success: true,
       message: `PRO plan successfully activated for ${request.user_name} (${request.user_email})!`
@@ -523,6 +546,26 @@ app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, 
   } catch (error) {
     res.status(500).json({ error: 'Failed to approve upgrade request' });
   }
+});
+
+// POST /api/admin/test-email (Admin tests Gmail connection)
+app.post('/api/admin/test-email', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await testGmailConnection();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/email-status (Admin checks if Gmail is configured)
+app.get('/api/admin/email-status', authMiddleware, adminOnly, async (req, res) => {
+  const configured = Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  res.json({
+    configured,
+    gmailUser: process.env.GMAIL_USER ? `${process.env.GMAIL_USER.substring(0, 3)}***@gmail.com` : null,
+    adminEmail: process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com'
+  });
 });
 
 // POST /api/billing/checkout (Stripe Checkout simulator / integration point)

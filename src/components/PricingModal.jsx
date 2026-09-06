@@ -22,6 +22,7 @@ export default function PricingModal() {
   const [showBuyForm, setShowBuyForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [adminEmailDisplay, setAdminEmailDisplay] = useState('');
   const [buyFormData, setBuyFormData] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
@@ -31,7 +32,7 @@ export default function PricingModal() {
 
   if (!isPricingModalOpen) return null;
 
-  // Handle direct request to admin@gmail.com
+  // Handle direct request to admin
   const handleBuyFormSubmit = async (e) => {
     e.preventDefault();
     if (!buyFormData.name || !buyFormData.email) return;
@@ -59,6 +60,9 @@ export default function PricingModal() {
       const { ok, data } = await parseResponse(res);
       if (!ok) throw new Error(data?.error || 'Failed to submit request');
 
+      if (data?.adminEmail) {
+        setAdminEmailDisplay(data.adminEmail);
+      }
       setSubmittedSuccess(true);
     } catch (err) {
       setFeedbackMsg(err.message || 'Error submitting request');
@@ -338,8 +342,8 @@ export default function PricingModal() {
                 </div>
                 <h4 className="fw-bold text-dark mb-2">Upgrade Request Sent!</h4>
                 <p className="text-muted small mx-auto mb-4" style={{ maxWidth: '440px' }}>
-                  Your request for <strong>SmartFinance PRO ({interval === 'annual' ? '$5/year' : '$1/month'})</strong> has been recorded and directed to{' '}
-                  <strong className="text-dark">admin@gmail.com</strong>.
+                  Your request for <strong>SmartFinance PRO ({interval === 'annual' ? '$5/year' : '$1/month'})</strong> has been submitted. An email notification has been dispatched to{' '}
+                  <strong className="text-dark">{adminEmailDisplay || 'Admin Gmail'}</strong>.
                 </p>
 
                 <div className="card bg-light border-0 rounded-4 p-3 mb-4 mx-auto text-start small" style={{ maxWidth: '420px' }}>
@@ -433,7 +437,7 @@ export default function PricingModal() {
 
                   <div className="col-12">
                     <label className="form-label small fw-semibold text-dark">
-                      Message / Note to Admin (admin@gmail.com)
+                      Message / Payment Reference to Admin
                     </label>
                     <textarea
                       rows="2"

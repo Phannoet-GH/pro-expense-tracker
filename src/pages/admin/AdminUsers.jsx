@@ -11,6 +11,46 @@ export default function AdminUsers() {
   const [actionMessage, setActionMessage] = useState(null);
   const [upgradeRequests, setUpgradeRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState(null);
+
+  const fetchEmailStatus = async () => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/email-status', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { ok, data } = await parseResponse(res);
+      if (ok) setEmailStatus(data);
+    } catch {}
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    setTestEmailResult(null);
+    try {
+      const res = await apiFetch('/api/admin/test-email', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { ok, data } = await parseResponse(res);
+      if (ok && data?.configured) {
+        setTestEmailResult({ success: true, message: data.message });
+      } else {
+        setTestEmailResult({
+          success: false,
+          message: data?.message || data?.error || 'Gmail connection failed. Check your App Password in .env.'
+        });
+      }
+    } catch (err) {
+      setTestEmailResult({ success: false, message: err.message || 'Connection error' });
+    } finally {
+      setTestingEmail(false);
+      fetchEmailStatus();
+      setTimeout(() => setTestEmailResult(null), 9000);
+    }
+  };
 
   const fetchUpgradeRequests = async () => {
     if (!token) return;
@@ -86,6 +126,7 @@ export default function AdminUsers() {
   useEffect(() => {
     fetchUsers();
     fetchUpgradeRequests();
+    fetchEmailStatus();
   }, [token]);
 
   const handleToggleStatus = async (user) => {
@@ -171,24 +212,59 @@ export default function AdminUsers() {
       <div className="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div>
-            <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+            <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2 flex-wrap">
               <i className="bi bi-envelope-paper-fill text-primary"></i>
               <span>PRO Upgrade Inquiries</span>
               <span className="badge bg-primary-subtle text-primary rounded-pill px-2 py-1 small">
-                Target: admin@gmail.com
+                Target: {emailStatus?.adminEmail || 'admin@gmail.com'}
               </span>
+              {emailStatus?.configured ? (
+                <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                  <i className="bi bi-check-circle-fill me-1"></i>Gmail Connected
+                </span>
+              ) : (
+                <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1 small" title="Set GMAIL_USER & GMAIL_APP_PASSWORD in .env">
+                  <i className="bi bi-exclamation-triangle-fill me-1"></i>Gmail Setup Pending
+                </span>
+              )}
             </h5>
             <p className="text-muted small mb-0">
-              Users requesting SmartFinance PRO ($1/mo, $5/yr). Review and activate with one click.
+              Clients requesting SmartFinance PRO. Email notifications are dispatched to Gmail when submitted.
             </p>
           </div>
-          <button
-            onClick={fetchUpgradeRequests}
-            className="btn btn-sm btn-outline-secondary rounded-pill px-3"
-          >
-            <i className="bi bi-arrow-clockwise me-1"></i> Refresh Inquiries
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            <button
+              onClick={handleTestEmail}
+              disabled={testingEmail}
+              className="btn btn-sm btn-outline-primary rounded-pill px-3"
+              title="Verify Gmail SMTP connection"
+            >
+              {testingEmail ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-envelope-check me-1"></i> Test Gmail
+                </>
+              )}
+            </button>
+            <button
+              onClick={fetchUpgradeRequests}
+              className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+            >
+              <i className="bi bi-arrow-clockwise me-1"></i> Refresh
+            </button>
+          </div>
         </div>
+
+        {testEmailResult && (
+          <div className={`alert ${testEmailResult.success ? 'alert-success' : 'alert-warning'} d-flex align-items-center gap-2 rounded-3 py-2 px-3 mb-3 small`}>
+            <i className={`bi ${testEmailResult.success ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'}`}></i>
+            <span>{testEmailResult.message}</span>
+          </div>
+        )}
 
         {requestsLoading ? (
           <div className="text-center py-3 text-muted small">

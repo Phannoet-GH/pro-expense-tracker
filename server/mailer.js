@@ -18,9 +18,11 @@ export function reloadEnv() {
 
 /**
  * Returns a configured Nodemailer transporter using Gmail SMTP.
+ * Defaults to port 587 (STARTTLS) which is widely supported across cloud providers,
+ * with support for port 465 (SSL).
  * Strips whitespace from Google App Passwords for resilience.
  */
-export function getTransporter() {
+export function getTransporter(customPort) {
   reloadEnv();
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -29,44 +31,90 @@ export function getTransporter() {
     return null;
   }
 
+  const port = parseInt(customPort || process.env.SMTP_PORT || '587', 10);
+  const secure = port === 465;
+
   return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port,
+    secure,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 12000,
     auth: {
       user: user.trim(),
       pass: pass.trim().replace(/\s+/g, '') // Handles spaces in copied 16-char app passwords
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
 }
 
 /**
- * Verifies if Gmail credentials are valid.
+ * Verifies if Gmail credentials are valid with automatic port fallback (587 -> 465).
  */
 export async function testGmailConnection() {
-  const transporter = getTransporter();
-  if (!transporter) {
+  reloadEnv();
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  if (!user || !pass) {
     return {
       configured: false,
-      message: 'GMAIL_USER or GMAIL_APP_PASSWORD is not configured in .env'
+      message: 'GMAIL_USER or GMAIL_APP_PASSWORD is not configured in environment variables'
     };
   }
 
+  // 1. Try port 587 (STARTTLS) first — best for cloud hosts
+  let primaryErr = null;
   try {
-    await transporter.verify();
+    const t587 = getTransporter(587);
+    await t587.verify();
     return {
       configured: true,
-      message: `Gmail SMTP connected successfully using ${process.env.GMAIL_USER}`
+      port: 587,
+      message: `Gmail SMTP connected successfully via port 587 using ${user}`
     };
-  } catch (error) {
-    console.error('❌ [Mailer] Gmail verification failed:', error.message);
+  } catch (err587) {
+    primaryErr = err587;
+    console.warn('⚠️ [Mailer] Port 587 check failed, attempting port 465 fallback...', err587.message);
+  }
+
+  // 2. Fallback to port 465 (SSL)
+  try {
+    const t465 = getTransporter(465);
+    await t465.verify();
+    return {
+      configured: true,
+      port: 465,
+      message: `Gmail SMTP connected successfully via port 465 using ${user}`
+    };
+  } catch (err465) {
+    console.error('❌ [Mailer] Both port 587 and 465 failed:', err465.message);
+
+    const isBadCredentials =
+      primaryErr?.message?.includes('535') ||
+      err465?.message?.includes('535') ||
+      primaryErr?.message?.includes('BadCredentials') ||
+      err465?.message?.includes('BadCredentials');
+
+    const isTimeout =
+      primaryErr?.message?.toLowerCase().includes('timeout') ||
+      err465?.message?.toLowerCase().includes('timeout') ||
+      primaryErr?.code === 'ETIMEDOUT' ||
+      err465?.code === 'ETIMEDOUT';
+
+    let errorDetail = err465.message;
+    if (isBadCredentials) {
+      errorDetail = 'Invalid Gmail App Password. Make sure 2-Step Verification is ON and create a 16-character App Password at https://myaccount.google.com/apppasswords.';
+    } else if (isTimeout) {
+      errorDetail = 'Connection timed out to smtp.gmail.com (ports 587 & 465). If your server is on a cloud host (like Railway/Render), the provider may be blocking outbound SMTP ports. Contact your cloud host to enable outbound email or use an email API relay.';
+    }
+
     return {
       configured: false,
-      error: error.message
+      error: errorDetail
     };
   }
 }
@@ -76,6 +124,24 @@ export async function testGmailConnection() {
  * 1. An alert email to the Admin Gmail with client and payment details.
  * 2. A confirmation receipt email to the client.
  */
+/**
+ * Sends mail with automatic port fallback (587 -> 465).
+ */
+async function sendMailWithFallback(mailOptions) {
+  let primaryError = null;
+  try {
+    const t587 = getTransporter(587);
+    if (t587) return await t587.sendMail(mailOptions);
+  } catch (err587) {
+    primaryError = err587;
+    console.warn('⚠️ [Mailer] sendMail on port 587 failed, trying port 465 fallback...', err587.message);
+  }
+
+  const t465 = getTransporter(465);
+  if (t465) return await t465.sendMail(mailOptions);
+  if (primaryError) throw primaryError;
+}
+
 export async function sendProUpgradeNotification({
   name,
   email,
@@ -85,11 +151,11 @@ export async function sendProUpgradeNotification({
   message = '',
   requestId = ''
 }) {
-  const transporter = getTransporter();
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
   const senderUser = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
 
-  if (!transporter || !senderUser) {
+  if (!senderUser || !pass) {
     console.warn('⚠️ [Mailer] Gmail credentials (GMAIL_USER / GMAIL_APP_PASSWORD) not configured. Email skipped.');
     return {
       success: false,
@@ -191,7 +257,7 @@ export async function sendProUpgradeNotification({
       </html>
     `;
 
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: adminEmail,
       subject: `🔥 [PRO Request] ${name} requested an upgrade to PRO (${price})`,
@@ -259,7 +325,7 @@ export async function sendProUpgradeNotification({
       </html>
     `;
 
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: email,
       subject: `✨ We received your PRO Upgrade request - Pro Expense Tracker`,
@@ -285,10 +351,10 @@ export async function sendProUpgradeNotification({
  * Dispatches an email to the client when Admin approves their PRO upgrade.
  */
 export async function sendProApprovedNotification({ name, email }) {
-  const transporter = getTransporter();
   const senderUser = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
 
-  if (!transporter || !senderUser) return;
+  if (!senderUser || !pass) return;
 
   try {
     const approvedHtml = `
@@ -337,7 +403,7 @@ export async function sendProApprovedNotification({ name, email }) {
       </html>
     `;
 
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: email,
       subject: `🎉 Congratulations! Your PRO Plan is Activated - Pro Expense Tracker`,

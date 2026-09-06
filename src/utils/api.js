@@ -82,7 +82,7 @@ export async function apiFetch(path, options = {}) {
       window.location.hostname === '127.0.0.1' ||
       window.location.hostname === '[::1]');
 
-  const requestTimeout = options.timeout || 15000;
+  const requestTimeout = options.timeout || 30000;
 
   const fetchWithTimeout = async (url, fetchOptions, timeoutMs = requestTimeout) => {
     const controller = new AbortController();

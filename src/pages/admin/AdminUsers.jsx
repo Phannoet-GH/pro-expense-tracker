@@ -33,7 +33,7 @@ export default function AdminUsers() {
       const res = await apiFetch('/api/admin/test-email', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        timeout: 25000
+        timeout: 35000
       });
       const { ok, data } = await parseResponse(res);
       if (ok && data?.configured) {

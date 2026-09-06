@@ -9,8 +9,7 @@ export default function PricingModal() {
     closePricingModal,
     upgradeTriggerReason,
     tier,
-    upgradePlan,
-    isLoading
+    upgradePlan
   } = useBilling();
 
   const { currentUser, token } = useContext(UserContext) || {};

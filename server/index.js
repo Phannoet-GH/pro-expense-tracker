@@ -1591,14 +1591,17 @@ app.get('/api/admin/audit', authMiddleware, adminOnly, async (req, res) => {
     }
 
     // 7. Mailer & Email Gateway
-    const mailerConfigured = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+    const mailUser = process.env.GMAIL_USER || process.env.EMAIL_USER;
+    const mailPass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS;
+    const resendKey = process.env.RESEND_API_KEY;
+    const mailerConfigured = Boolean(resendKey || (mailUser && mailPass));
     checks.push({
-      name: 'Gmail SMTP Gateway',
+      name: 'Gmail SMTP / Cloud Mail Gateway',
       category: 'Email & Notifications',
       status: mailerConfigured ? 'PASS' : 'WARN',
       details: mailerConfigured
-        ? `Gmail SMTP active (${process.env.EMAIL_USER}) targeting ${process.env.ADMIN_EMAIL || 'petphannoet@gmail.com'}.`
-        : `Simulated mode: EMAIL_PASS not set. Emails logged to console; notifications targeted to ${process.env.ADMIN_EMAIL || 'petphannoet@gmail.com'}.`
+        ? `Credentials active (${mailUser || 'Resend'}) targeting notifications to ${process.env.ADMIN_EMAIL || 'petphannoet@gmail.com'}.`
+        : `Simulated mode: Credentials not set. Emails logged to console; notifications targeted to ${process.env.ADMIN_EMAIL || 'petphannoet@gmail.com'}.`
     });
 
     // 8. Runtime & System Resources

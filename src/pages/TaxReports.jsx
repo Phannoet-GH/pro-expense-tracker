@@ -16,19 +16,17 @@ const TAX_CATEGORIES = [
 
 export default function TaxReports() {
   const { expenses, currency, formatAmount } = useContext(ExpenseContext);
-  const { token, currentUser } = useContext(UserContext);
+  const { token } = useContext(UserContext);
   const { isPro, openPricingModal } = useBilling();
 
   const [taxRate, setTaxRate] = useState(28); // Standard estimated marginal tax bracket
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [taxSummary, setTaxSummary] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
   // Fetch server-calculated tax summary
   const fetchTaxSummary = async () => {
     if (!token) return;
-    setIsLoading(true);
     try {
       const res = await apiFetch('/api/tax/summary', {
         headers: { Authorization: `Bearer ${token}` }
@@ -39,8 +37,6 @@ export default function TaxReports() {
       }
     } catch (err) {
       console.warn('Tax summary fetch error:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 

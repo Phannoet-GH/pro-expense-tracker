@@ -3,8 +3,7 @@ import { ExpenseContext } from '../context/ExpenseContext';
 import {
   CURRENCY_METADATA,
   SUPPORTED_CURRENCIES,
-  convertCurrency,
-  formatCurrencyAmount
+  convertCurrency
 } from '../utils/currency';
 
 export default function CurrencyConverterModal({ isOpen, onClose }) {

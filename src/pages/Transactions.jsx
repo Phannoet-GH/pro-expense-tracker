@@ -38,7 +38,6 @@ export default function Transactions() {
 
   // Edit Modal state
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingTx, setEditingTx] = useState(null);
   const [editForm, setEditForm] = useState({
     id: '',
     txType: 'expense',
@@ -102,7 +101,6 @@ export default function Transactions() {
     }
 
     setShowEditModal(false);
-    setEditingTx(null);
   };
 
   // Combine and filter transactions

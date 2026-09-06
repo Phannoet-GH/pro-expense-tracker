@@ -18,7 +18,7 @@ export function UserProvider({ children }) {
   const [authError, setAuthError] = useState(null);
 
   // Helper: Offline demo authentication
-  const handleOfflineLogin = (email, password) => {
+  const _handleOfflineLogin = (email, password) => {
     const input = (email || '').trim().toLowerCase();
 
     // 1. Super Administrator Check
@@ -98,7 +98,7 @@ export function UserProvider({ children }) {
   };
 
   // Helper: Offline demo registration
-  const handleOfflineRegister = (userData) => {
+  const _handleOfflineRegister = (userData) => {
     const name = (userData.name || '').trim();
     const email = (userData.email || '').trim().toLowerCase();
     const password = userData.password || '';

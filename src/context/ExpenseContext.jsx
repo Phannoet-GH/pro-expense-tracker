@@ -3,8 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserContext } from './UserContext';
 import { parseResponse, apiFetch } from '../utils/api';
 import {
-  CURRENCY_METADATA,
-  SUPPORTED_CURRENCIES,
   DEFAULT_EXCHANGE_RATES,
   fetchLiveExchangeRates,
   convertCurrency,

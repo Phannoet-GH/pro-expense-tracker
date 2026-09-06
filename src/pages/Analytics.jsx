@@ -21,7 +21,7 @@ const TIMEFRAMES = [
 ];
 
 export default function Analytics() {
-  const { expenses, incomes, formatAmount, currency, currencySymbol, convertAmount } = useContext(ExpenseContext);
+  const { expenses, incomes, formatAmount, currencySymbol, convertAmount } = useContext(ExpenseContext);
   const { isDark } = useTheme();
   const [timeframe, setTimeframe] = useState('all');
 

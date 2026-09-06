@@ -27,7 +27,8 @@ export default function Dashboard() {
     totalBudgetLimit,
     formatAmount,
     currency,
-    dualCurrencyEnabled
+    dualCurrencyEnabled,
+    isLoading
   } = useContext(ExpenseContext);
 
   const { token, currentUser } = useContext(UserContext) || {};
@@ -951,9 +952,16 @@ export default function Dashboard() {
                 {currentUser?.name || currentUser?.email || 'Account'}
               </span>
             </div>
-            <span className="badge bg-primary-subtle text-primary mt-1">
-              {formatAmount(totalExpense)} of {formatAmount(totalBudgetLimit)} spent &bull; Remaining: {formatAmount(remainingBudget)}
-            </span>
+            {isLoading && expenses.length === 0 ? (
+              <span className="badge bg-light text-muted border mt-1">
+                <span className="spinner-border spinner-border-sm me-1" style={{ width: '10px', height: '10px' }}></span>
+                Syncing allowances...
+              </span>
+            ) : (
+              <span className="badge bg-primary-subtle text-primary mt-1">
+                {formatAmount(totalExpense)} of {formatAmount(totalBudgetLimit)} spent &bull; Remaining: {formatAmount(remainingBudget)}
+              </span>
+            )}
           </div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <button
@@ -973,37 +981,57 @@ export default function Dashboard() {
         </div>
 
         <div className="row g-3">
-          {Object.entries(budgets).map(([cat, limit]) => {
-            const spent = categorySpending[cat] || 0;
-            const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
-            const isOver = spent > limit;
-            const isWarning = pct >= 75 && !isOver;
-            const barColorClass = isOver ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success';
-
-            return (
-              <div key={cat} className="col-md-6 col-lg-4">
-                <div className="p-3 bg-light rounded-3 border">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-bold small">{cat}</span>
-                    <span className={`badge ${isOver ? 'bg-danger' : isWarning ? 'bg-warning text-dark' : 'bg-success-subtle text-success'}`}>
-                      {isOver ? 'Over Budget' : `${pct}%`}
-                    </span>
+          {isLoading && expenses.length === 0 ? (
+            [1, 2, 3, 4, 5].map((idx) => (
+              <div key={idx} className="col-md-6 col-lg-4">
+                <div className="p-3 bg-light rounded-3 border placeholder-glow">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="placeholder col-5 rounded" style={{ height: '14px' }}></span>
+                    <span className="placeholder col-2 rounded" style={{ height: '14px' }}></span>
                   </div>
-                  <div className="d-flex justify-content-between small text-muted mb-2">
-                    <span>{formatAmount(spent)} spent</span>
-                    <span>Limit: {formatAmount(limit)}</span>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="placeholder col-4 rounded" style={{ height: '12px' }}></span>
+                    <span className="placeholder col-3 rounded" style={{ height: '12px' }}></span>
                   </div>
                   <div className="progress" style={{ height: '6px' }}>
-                    <div
-                      className={`progress-bar ${barColorClass}`}
-                      role="progressbar"
-                      style={{ width: `${pct}%` }}
-                    ></div>
+                    <div className="progress-bar progress-bar-striped progress-bar-animated bg-secondary-subtle" style={{ width: '45%' }}></div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            ))
+          ) : (
+            Object.entries(budgets).map(([cat, limit]) => {
+              const spent = categorySpending[cat] || 0;
+              const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+              const isOver = spent > limit;
+              const isWarning = pct >= 75 && !isOver;
+              const barColorClass = isOver ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success';
+
+              return (
+                <div key={cat} className="col-md-6 col-lg-4">
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold small">{cat}</span>
+                      <span className={`badge ${isOver ? 'bg-danger' : isWarning ? 'bg-warning text-dark' : 'bg-success-subtle text-success'}`}>
+                        {isOver ? 'Over Budget' : `${pct}%`}
+                      </span>
+                    </div>
+                    <div className="d-flex justify-content-between small text-muted mb-2">
+                      <span>{formatAmount(spent)} spent</span>
+                      <span>Limit: {formatAmount(limit)}</span>
+                    </div>
+                    <div className="progress" style={{ height: '6px' }}>
+                      <div
+                        className={`progress-bar ${barColorClass}`}
+                        role="progressbar"
+                        style={{ width: `${pct}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

@@ -114,13 +114,32 @@ export const SAMPLE_RECEIPTS = [
   }
 ];
 
+// Synchronously read cached data for active user session on app mount
+const getInitialUserCache = (key, fallback) => {
+  try {
+    const savedUser = localStorage.getItem('smartfinance_current_user');
+    const uId = savedUser ? JSON.parse(savedUser)?.id : null;
+    if (uId) {
+      const cached = localStorage.getItem(`smartfinance_${key}_${uId}`);
+      if (cached) return JSON.parse(cached);
+    }
+  } catch {}
+  return fallback;
+};
+
 export const ExpenseProvider = ({ children }) => {
   const { token, currentUser } = useContext(UserContext) || {};
+  const userStorageKey = currentUser?.id || 'guest';
 
-  const [expenses, setExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [savingsGoals, setSavingsGoals] = useState([]);
-  const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
+  // Instant hydration from user-scoped localStorage (zero flicker / no 1500 flash on refresh)
+  const [expenses, setExpenses] = useState(() => getInitialUserCache('expenses', []));
+  const [incomes, setIncomes] = useState(() => getInitialUserCache('incomes', []));
+  const [savingsGoals, setSavingsGoals] = useState(() => getInitialUserCache('goals', []));
+  const [budgets, setBudgets] = useState(() => {
+    const cached = getInitialUserCache('budgets', null);
+    return cached ? { ...DEFAULT_BUDGETS, ...cached } : DEFAULT_BUDGETS;
+  });
+
   const [currency, setCurrency] = useState(() => {
     const saved = localStorage.getItem('app_currency');
     const symbolMap = { '$': 'USD', '៛': 'KHR', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'CA$': 'CAD', 'AU$': 'AUD', '฿': 'THB', 'S$': 'SGD', 'CN¥': 'CNY' };
@@ -152,9 +171,29 @@ export const ExpenseProvider = ({ children }) => {
 
   const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline'
   const [dbInfo, setDbInfo] = useState({ dbName: 'pro_expense_tracker', host: '127.0.0.1:3306' });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem('smartfinance_auth_token')));
 
-  const userStorageKey = currentUser?.id || 'guest';
+  const saveToUserStorage = useCallback((key, data) => {
+    const uId = currentUser?.id;
+    if (uId) {
+      try {
+        localStorage.setItem(`smartfinance_${key}_${uId}`, JSON.stringify(data));
+      } catch (err) {
+        console.warn(`[ExpenseContext] Failed to cache ${key}:`, err);
+      }
+    }
+  }, [currentUser?.id]);
+
+  const removeFromUserStorage = useCallback((key) => {
+    const uId = currentUser?.id;
+    if (uId) {
+      try {
+        localStorage.removeItem(`smartfinance_${key}_${uId}`);
+      } catch (err) {
+        console.warn(`[ExpenseContext] Failed to remove ${key}:`, err);
+      }
+    }
+  }, [currentUser?.id]);
 
   // Fetch live exchange rates on initial load silently
   useEffect(() => {
@@ -294,25 +333,37 @@ export const ExpenseProvider = ({ children }) => {
         // 2. Fetch authenticated user's private expenses
         const expRes = await apiFetch('/api/expenses', { headers: getAuthHeaders() });
         const { ok: expOk, data: expData } = await parseResponse(expRes);
-        if (expOk && Array.isArray(expData)) setExpenses(expData);
+        if (expOk && Array.isArray(expData)) {
+          setExpenses(expData);
+          saveToUserStorage('expenses', expData);
+        }
 
         // 3. Fetch authenticated user's private incomes
         const incRes = await apiFetch('/api/incomes', { headers: getAuthHeaders() });
         const { ok: incOk, data: incData } = await parseResponse(incRes);
-        if (incOk && Array.isArray(incData)) setIncomes(incData);
+        if (incOk && Array.isArray(incData)) {
+          setIncomes(incData);
+          saveToUserStorage('incomes', incData);
+        }
 
         // 4. Fetch authenticated user's private savings goals
         const goalRes = await apiFetch('/api/savings-goals', { headers: getAuthHeaders() });
         const { ok: goalOk, data: goalData } = await parseResponse(goalRes);
-        if (goalOk && Array.isArray(goalData)) setSavingsGoals(goalData);
+        if (goalOk && Array.isArray(goalData)) {
+          setSavingsGoals(goalData);
+          saveToUserStorage('goals', goalData);
+        }
 
         // 5. Fetch authenticated user's isolated category budgets (or default benchmarks)
         const budRes = await apiFetch('/api/budgets', { headers: getAuthHeaders() });
         const { ok: budOk, data: budData } = await parseResponse(budRes);
         if (budOk && budData && typeof budData === 'object' && Object.keys(budData).length > 0) {
-          setBudgets({ ...DEFAULT_BUDGETS, ...budData });
+          const merged = { ...DEFAULT_BUDGETS, ...budData };
+          setBudgets(merged);
+          saveToUserStorage('budgets', merged);
         } else {
           setBudgets(DEFAULT_BUDGETS);
+          saveToUserStorage('budgets', DEFAULT_BUDGETS);
         }
       } catch (error) {
         console.warn('[ExpenseContext] Online sync error:', error.message);
@@ -332,86 +383,19 @@ export const ExpenseProvider = ({ children }) => {
     if (localExpenses) {
       try { setExpenses(JSON.parse(localExpenses)); } catch {}
     } else {
-      const initialDemoExpenses = [
-        {
-          id: 'exp-1',
-          title: 'Starbucks Nitro Cold Brew & Snacks',
-          amount: 14.50,
-          category: 'Food & Drink',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Nitro Cold Brew & Almond Croissant',
-          is_tax_deductible: false,
-          tax_category: 'Personal'
-        },
-        {
-          id: 'exp-2',
-          title: 'High-speed Fiber Internet',
-          amount: 60.00,
-          category: 'Internet',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Monthly fiber broadband',
-          is_tax_deductible: true,
-          tax_category: 'Work Utility'
-        },
-        {
-          id: 'exp-3',
-          title: 'Studio Apartment Rental',
-          amount: 550.00,
-          category: 'Room',
-          date: new Date().toISOString().split('T')[0],
-          description: 'Monthly housing allowance',
-          is_tax_deductible: false,
-          tax_category: 'Housing'
-        }
-      ];
-      setExpenses(initialDemoExpenses);
-      localStorage.setItem(`smartfinance_expenses_${userId}`, JSON.stringify(initialDemoExpenses));
+      setExpenses([]);
     }
 
     if (localIncomes) {
       try { setIncomes(JSON.parse(localIncomes)); } catch {}
     } else {
-      const initialDemoIncomes = [
-        {
-          id: 'inc-1',
-          source: 'Primary Employment Salary',
-          amount: 3200.00,
-          date: new Date().toISOString().split('T')[0],
-          is_recurring: true,
-          notes: 'Bi-weekly direct payroll deposit'
-        }
-      ];
-      setIncomes(initialDemoIncomes);
-      localStorage.setItem(`smartfinance_incomes_${userId}`, JSON.stringify(initialDemoIncomes));
+      setIncomes([]);
     }
 
     if (localGoals) {
       try { setSavingsGoals(JSON.parse(localGoals)); } catch {}
     } else {
-      const initialDemoGoals = [
-        {
-          id: 'goal-1',
-          title: 'Emergency Rainy Day Fund',
-          target_amount: 5000.00,
-          current_amount: 2200.00,
-          target_date: '2026-12-31',
-          category: 'Emergency Fund',
-          priority: 'high',
-          color: '#10b981'
-        },
-        {
-          id: 'goal-2',
-          title: 'Vacation & Travel',
-          target_amount: 1500.00,
-          current_amount: 650.00,
-          target_date: '2026-11-20',
-          category: 'Travel & Vacation',
-          priority: 'medium',
-          color: '#3b82f6'
-        }
-      ];
-      setSavingsGoals(initialDemoGoals);
-      localStorage.setItem(`smartfinance_goals_${userId}`, JSON.stringify(initialDemoGoals));
+      setSavingsGoals([]);
     }
 
     if (localBudgets) {
@@ -439,7 +423,11 @@ export const ExpenseProvider = ({ children }) => {
       amount: parseFloat(expense.amount || 0)
     };
 
-    setExpenses(prev => [newExpense, ...prev]);
+    setExpenses(prev => {
+      const next = [newExpense, ...prev];
+      saveToUserStorage('expenses', next);
+      return next;
+    });
 
     try {
       await apiFetch('/api/expenses', {
@@ -453,7 +441,11 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const updateExpense = async (updatedExpense) => {
-    setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? { ...e, ...updatedExpense, amount: parseFloat(updatedExpense.amount) } : e));
+    setExpenses(prev => {
+      const next = prev.map(e => e.id === updatedExpense.id ? { ...e, ...updatedExpense, amount: parseFloat(updatedExpense.amount) } : e);
+      saveToUserStorage('expenses', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/expenses/${updatedExpense.id}`, {
@@ -467,7 +459,11 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const deleteExpense = async (id) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    setExpenses(prev => {
+      const next = prev.filter(e => e.id !== id);
+      saveToUserStorage('expenses', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/expenses/${id}`, {
@@ -481,6 +477,7 @@ export const ExpenseProvider = ({ children }) => {
 
   const clearAllExpenses = async () => {
     setExpenses([]);
+    removeFromUserStorage('expenses');
     try {
       await apiFetch('/api/expenses', {
         method: 'DELETE',
@@ -500,7 +497,11 @@ export const ExpenseProvider = ({ children }) => {
       is_recurring: Boolean(income.is_recurring)
     };
 
-    setIncomes(prev => [newIncome, ...prev]);
+    setIncomes(prev => {
+      const next = [newIncome, ...prev];
+      saveToUserStorage('incomes', next);
+      return next;
+    });
 
     try {
       await apiFetch('/api/incomes', {
@@ -514,7 +515,11 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const updateIncome = async (updatedIncome) => {
-    setIncomes(prev => prev.map(i => i.id === updatedIncome.id ? { ...i, ...updatedIncome, amount: parseFloat(updatedIncome.amount) } : i));
+    setIncomes(prev => {
+      const next = prev.map(i => i.id === updatedIncome.id ? { ...i, ...updatedIncome, amount: parseFloat(updatedIncome.amount) } : i);
+      saveToUserStorage('incomes', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/incomes/${updatedIncome.id}`, {
@@ -528,7 +533,11 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const deleteIncome = async (id) => {
-    setIncomes(prev => prev.filter(i => i.id !== id));
+    setIncomes(prev => {
+      const next = prev.filter(i => i.id !== id);
+      saveToUserStorage('incomes', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/incomes/${id}`, {
@@ -542,6 +551,7 @@ export const ExpenseProvider = ({ children }) => {
 
   const clearAllIncomes = async () => {
     setIncomes([]);
+    removeFromUserStorage('incomes');
     try {
       await apiFetch('/api/incomes', {
         method: 'DELETE',
@@ -561,7 +571,11 @@ export const ExpenseProvider = ({ children }) => {
       current_amount: parseFloat(goal.current_amount || 0)
     };
 
-    setSavingsGoals(prev => [newGoal, ...prev]);
+    setSavingsGoals(prev => {
+      const next = [newGoal, ...prev];
+      saveToUserStorage('goals', next);
+      return next;
+    });
 
     try {
       await apiFetch('/api/savings-goals', {
@@ -575,12 +589,16 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const updateSavingsGoal = async (updatedGoal) => {
-    setSavingsGoals(prev => prev.map(g => g.id === updatedGoal.id ? {
-      ...g,
-      ...updatedGoal,
-      target_amount: parseFloat(updatedGoal.target_amount),
-      current_amount: parseFloat(updatedGoal.current_amount)
-    } : g));
+    setSavingsGoals(prev => {
+      const next = prev.map(g => g.id === updatedGoal.id ? {
+        ...g,
+        ...updatedGoal,
+        target_amount: parseFloat(updatedGoal.target_amount),
+        current_amount: parseFloat(updatedGoal.current_amount)
+      } : g);
+      saveToUserStorage('goals', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/savings-goals/${updatedGoal.id}`, {
@@ -597,12 +615,16 @@ export const ExpenseProvider = ({ children }) => {
     const amt = parseFloat(depositAmount || 0);
     if (amt <= 0) return;
 
-    setSavingsGoals(prev => prev.map(g => {
-      if (g.id === id) {
-        return { ...g, current_amount: parseFloat(g.current_amount || 0) + amt };
-      }
-      return g;
-    }));
+    setSavingsGoals(prev => {
+      const next = prev.map(g => {
+        if (g.id === id) {
+          return { ...g, current_amount: parseFloat(g.current_amount || 0) + amt };
+        }
+        return g;
+      });
+      saveToUserStorage('goals', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/savings-goals/${id}/deposit`, {
@@ -616,7 +638,11 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const deleteSavingsGoal = async (id) => {
-    setSavingsGoals(prev => prev.filter(g => g.id !== id));
+    setSavingsGoals(prev => {
+      const next = prev.filter(g => g.id !== id);
+      saveToUserStorage('goals', next);
+      return next;
+    });
 
     try {
       await apiFetch(`/api/savings-goals/${id}`, {
@@ -630,6 +656,7 @@ export const ExpenseProvider = ({ children }) => {
 
   const clearAllSavingsGoals = async () => {
     setSavingsGoals([]);
+    removeFromUserStorage('goals');
     try {
       await apiFetch('/api/savings-goals', {
         method: 'DELETE',

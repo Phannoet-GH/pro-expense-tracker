@@ -68,13 +68,36 @@ export async function testGmailConnection() {
 
   // 1. Try port 587 (STARTTLS) first — best for cloud hosts
   let primaryErr = null;
+  const adminEmail = process.env.ADMIN_EMAIL || user;
   try {
     const t587 = getTransporter(587);
     await t587.verify();
+
+    // Actually send a test email to admin so user receives it in their inbox
+    await t587.sendMail({
+      from: `"Pro Expense Tracker" <${user}>`,
+      to: adminEmail,
+      subject: `🧪 [Test Email] SmartFinance PRO Email System is Connected!`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; max-width: 550px; margin: 0 auto;">
+          <h2 style="color: #2563eb; margin-top: 0;">✅ Gmail SMTP Test Successful!</h2>
+          <p style="color: #334155; font-size: 15px; line-height: 1.5;">This email confirms that your Gmail configuration is working and able to deliver emails.</p>
+          <div style="background-color: #ffffff; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 16px 0;">
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Sender:</strong> ${user}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Recipient:</strong> ${adminEmail}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Port:</strong> 587 (STARTTLS)</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">You will receive client PRO upgrade notifications at this email address.</p>
+        </div>
+      `,
+      text: `SmartFinance PRO: Gmail SMTP test email delivered successfully to ${adminEmail} at ${new Date().toLocaleString()}`
+    });
+
     return {
       configured: true,
       port: 587,
-      message: `Gmail SMTP connected successfully via port 587 using ${user}`
+      message: `Test email sent successfully to ${adminEmail}! Please check your inbox (and Spam folder).`
     };
   } catch (err587) {
     primaryErr = err587;
@@ -85,10 +108,31 @@ export async function testGmailConnection() {
   try {
     const t465 = getTransporter(465);
     await t465.verify();
+
+    await t465.sendMail({
+      from: `"Pro Expense Tracker" <${user}>`,
+      to: adminEmail,
+      subject: `🧪 [Test Email] SmartFinance PRO Email System is Connected!`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; max-width: 550px; margin: 0 auto;">
+          <h2 style="color: #2563eb; margin-top: 0;">✅ Gmail SMTP Test Successful!</h2>
+          <p style="color: #334155; font-size: 15px; line-height: 1.5;">This email confirms that your Gmail configuration is working and able to deliver emails.</p>
+          <div style="background-color: #ffffff; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 16px 0;">
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Sender:</strong> ${user}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Recipient:</strong> ${adminEmail}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Port:</strong> 465 (SSL)</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">You will receive client PRO upgrade notifications at this email address.</p>
+        </div>
+      `,
+      text: `SmartFinance PRO: Gmail SMTP test email delivered successfully to ${adminEmail} at ${new Date().toLocaleString()}`
+    });
+
     return {
       configured: true,
       port: 465,
-      message: `Gmail SMTP connected successfully via port 465 using ${user}`
+      message: `Test email sent successfully to ${adminEmail}! Please check your inbox (and Spam folder).`
     };
   } catch (err465) {
     console.error('❌ [Mailer] Both port 587 and 465 failed:', err465.message);
@@ -151,6 +195,7 @@ export async function sendProUpgradeNotification({
   message = '',
   requestId = ''
 }) {
+  reloadEnv();
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
   const senderUser = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -351,6 +396,7 @@ export async function sendProUpgradeNotification({
  * Dispatches an email to the client when Admin approves their PRO upgrade.
  */
 export async function sendProApprovedNotification({ name, email }) {
+  reloadEnv();
   const senderUser = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
 

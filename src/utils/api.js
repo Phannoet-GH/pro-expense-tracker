@@ -82,9 +82,19 @@ export async function apiFetch(path, options = {}) {
       window.location.hostname === '127.0.0.1' ||
       window.location.hostname === '[::1]');
 
-  const fetchWithTimeout = async (url, fetchOptions, timeoutMs = 4000) => {
+  const requestTimeout = options.timeout || 15000;
+
+  const fetchWithTimeout = async (url, fetchOptions, timeoutMs = requestTimeout) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => {
+      const timeoutErr = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+      timeoutErr.name = 'TimeoutError';
+      try {
+        controller.abort(timeoutErr);
+      } catch {
+        controller.abort();
+      }
+    }, timeoutMs);
 
     try {
       const mergedOptions = {
@@ -96,6 +106,19 @@ export async function apiFetch(path, options = {}) {
       return res;
     } catch (err) {
       clearTimeout(timeoutId);
+      if (
+        err.name === 'AbortError' ||
+        err.name === 'TimeoutError' ||
+        (err.message && err.message.toLowerCase().includes('abort'))
+      ) {
+        const enhancedError = new Error(
+          err.message && !err.message.includes('without reason')
+            ? err.message
+            : `Network request timed out (${Math.round(timeoutMs / 1000)}s). The server took too long to respond.`
+        );
+        enhancedError.name = 'TimeoutError';
+        throw enhancedError;
+      }
       throw err;
     }
   };
@@ -103,7 +126,7 @@ export async function apiFetch(path, options = {}) {
   // If remote backend configured (e.g. Render / Railway / Fly.io)
   if (envBase) {
     try {
-      return await fetchWithTimeout(`${envBase}${normalizedPath}`, options);
+      return await fetchWithTimeout(`${envBase}${normalizedPath}`, options, requestTimeout);
     } catch (err) {
       console.warn(`[apiFetch] Configured backend (${envBase}) failed:`, err.message);
       throw err;
@@ -112,13 +135,13 @@ export async function apiFetch(path, options = {}) {
 
   // Otherwise, try relative path first
   try {
-    const res = await fetchWithTimeout(normalizedPath, options);
+    const res = await fetchWithTimeout(normalizedPath, options, requestTimeout);
 
     // If static host returns 404 or 405 Method Not Allowed (Vercel static SPA rewrites)
     if (res.status === 404 || res.status === 405) {
       if (isLocal) {
         console.warn(`[apiFetch] ${normalizedPath} returned HTTP ${res.status}. Retrying locally against 127.0.0.1:5001...`);
-        return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options);
+        return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options, requestTimeout);
       }
       return res;
     }
@@ -126,7 +149,7 @@ export async function apiFetch(path, options = {}) {
   } catch (err) {
     if (isLocal) {
       console.warn(`[apiFetch] Local relative fetch error: ${err.message}. Retrying against 127.0.0.1:5001...`);
-      return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options);
+      return await fetchWithTimeout(`http://127.0.0.1:5001${normalizedPath}`, options, requestTimeout);
     }
     throw err;
   }

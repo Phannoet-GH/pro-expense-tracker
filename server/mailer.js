@@ -34,6 +34,9 @@ export function getTransporter() {
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
     auth: {
       user: user.trim(),
       pass: pass.trim().replace(/\s+/g, '') // Handles spaces in copied 16-char app passwords

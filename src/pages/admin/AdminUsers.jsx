@@ -32,7 +32,8 @@ export default function AdminUsers() {
     try {
       const res = await apiFetch('/api/admin/test-email', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 25000
       });
       const { ok, data } = await parseResponse(res);
       if (ok && data?.configured) {
@@ -44,7 +45,17 @@ export default function AdminUsers() {
         });
       }
     } catch (err) {
-      setTestEmailResult({ success: false, message: err.message || 'Connection error' });
+      const isTimeout =
+        err?.name === 'TimeoutError' ||
+        err?.name === 'AbortError' ||
+        err?.message?.toLowerCase().includes('abort') ||
+        err?.message?.toLowerCase().includes('timed out');
+      setTestEmailResult({
+        success: false,
+        message: isTimeout
+          ? 'Gmail verification timed out. Connecting to smtp.gmail.com took longer than expected. Please verify your internet connection or try again.'
+          : (err.message || 'Connection error')
+      });
     } finally {
       setTestingEmail(false);
       fetchEmailStatus();

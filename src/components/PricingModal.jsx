@@ -76,19 +76,6 @@ export default function PricingModal() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleUseDefaultImage = async (e) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    try {
-      const response = await fetch('/images/aba-khqr.png');
-      const blob = await response.blob();
-      const file = new File([blob], 'aba-khqr-petphannoet.png', { type: 'image/png' });
-      processFile(file);
-    } catch (err) {
-      console.warn('Could not load default payment proof:', err);
-    }
-  };
-
   if (!isPricingModalOpen) return null;
 
   // Handle direct request to admin
@@ -528,18 +515,10 @@ export default function PricingModal() {
                             style={{ maxHeight: '220px', objectFit: 'contain' }}
                           />
                         </div>
-                        <div className="small text-muted mb-2">
+                        <div className="small text-muted mb-0">
                           Scan with <strong>ABA Mobile</strong> or any <strong>KHQR Bank App</strong> to pay{' '}
                           <strong className="text-primary">{interval === 'annual' ? '$5.00' : '$1.00'}</strong>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 shadow-2xs"
-                          onClick={handleUseDefaultImage}
-                          title="Attach this payment QR slip as your proof"
-                        >
-                          <i className="bi bi-paperclip me-1"></i> Use Default Image as Proof
-                        </button>
                       </div>
                     </div>
                   )}
@@ -599,15 +578,6 @@ export default function PricingModal() {
                         </div>
                         <div className="text-muted" style={{ fontSize: '11px' }}>
                           Supports PNG, JPG, WEBP, or PDF receipt (Max 8MB)
-                        </div>
-                        <div className="mt-2">
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline-primary rounded-pill px-3 py-1"
-                            onClick={handleUseDefaultImage}
-                          >
-                            <i className="bi bi-image me-1"></i> Use Default Image
-                          </button>
                         </div>
                       </div>
                     ) : (

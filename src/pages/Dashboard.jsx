@@ -114,46 +114,6 @@ export default function Dashboard() {
     reader.readAsDataURL(file);
   };
 
-  const handleUseDefaultProof = async () => {
-    try {
-      setUploadingProof(true);
-      const response = await fetch('/images/aba-khqr.png');
-      const blob = await response.blob();
-      const file = new File([blob], 'aba-khqr-petphannoet.png', { type: 'image/png' });
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const res = await apiFetch('/api/client/inquiry-proof', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              requestId: inquiryReply?.id,
-              payment_proof: reader.result,
-              receipt_file_name: file.name
-            })
-          });
-          const { ok } = await parseResponse(res);
-          if (ok) {
-            setInquiryReply(prev => ({ ...prev, payment_proof: reader.result, receipt_file_name: file.name }));
-            setProofSuccessMsg('Default ABA payment slip attached successfully!');
-            setTimeout(() => setProofSuccessMsg(''), 5000);
-          }
-        } catch (err) {
-          console.error('Error uploading default proof:', err);
-        } finally {
-          setUploadingProof(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.warn('Could not load default proof:', err);
-      setUploadingProof(false);
-    }
-  };
-
   // Transaction form type toggle: 'expense' | 'income'
   const [txType, setTxType] = useState('expense');
   const [showAutoCalcModal, setShowAutoCalcModal] = useState(false);
@@ -431,16 +391,6 @@ export default function Dashboard() {
                   className="d-none"
                   onChange={handleUploadProofFromDashboard}
                 />
-
-                <button
-                  type="button"
-                  disabled={uploadingProof}
-                  onClick={handleUseDefaultProof}
-                  className="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold"
-                  title="Attach default ABA KHQR payment slip"
-                >
-                  <i className="bi bi-image me-1"></i> Default Image
-                </button>
 
                 <a
                   href={`mailto:${adminEmail}?subject=Re:%20SmartFinance%20PRO%20Inquiry%20Response`}

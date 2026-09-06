@@ -418,13 +418,15 @@ export default function AdminUsers() {
                     </td>
                     <td className="text-end">
                       <div className="d-inline-flex gap-2 justify-content-end align-items-center">
-                        <button
-                          onClick={() => openReplyModal(req)}
-                          className="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-xs"
-                          title={`Send reply message to ${req.user_email}`}
-                        >
-                          <i className="bi bi-reply-fill me-1"></i> Reply
-                        </button>
+                        {!req.admin_reply && (
+                          <button
+                            onClick={() => openReplyModal(req)}
+                            className="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-xs"
+                            title={`Send reply message to ${req.user_email}`}
+                          >
+                            <i className="bi bi-reply-fill me-1"></i> Reply
+                          </button>
+                        )}
                         {req.status === 'pending' && (
                           <button
                             onClick={() => handleApproveRequest(req.id)}
@@ -432,6 +434,11 @@ export default function AdminUsers() {
                           >
                             <i className="bi bi-check2-circle me-1"></i> Approve PRO
                           </button>
+                        )}
+                        {req.status === 'approved' && req.admin_reply && (
+                          <span className="badge bg-light text-muted border rounded-pill px-2 py-1" style={{ fontSize: '11px' }}>
+                            <i className="bi bi-check2-all text-success me-1"></i>Done
+                          </span>
                         )}
                       </div>
                     </td>

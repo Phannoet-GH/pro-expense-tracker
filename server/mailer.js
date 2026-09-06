@@ -59,8 +59,8 @@ export async function sendViaResend({ to, subject, html, text, replyTo }) {
  */
 export function getTransporter(customPort) {
   reloadEnv();
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
 
   if (!user || !pass) {
     return null;
@@ -68,17 +68,18 @@ export function getTransporter(customPort) {
 
   const port = parseInt(customPort || process.env.SMTP_PORT || '587', 10);
   const secure = port === 465;
+  const cleanPass = pass.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port,
     secure,
-    connectionTimeout: 4000,
-    greetingTimeout: 4000,
-    socketTimeout: 6000,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
     auth: {
       user: user.trim(),
-      pass: pass.trim().replace(/\s+/g, '') // Handles spaces in copied 16-char app passwords
+      pass: cleanPass
     },
     tls: {
       rejectUnauthorized: false
@@ -92,8 +93,8 @@ export function getTransporter(customPort) {
 export async function testGmailConnection() {
   reloadEnv();
   const resendKey = process.env.RESEND_API_KEY;
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
   const adminEmail = process.env.ADMIN_EMAIL || user || 'petphannoet@gmail.com';
 
   // 1. If Resend API Key is set, test Resend HTTPS (works 100% on Railway/Render)
@@ -134,7 +135,7 @@ export async function testGmailConnection() {
   if (!user || !pass) {
     return {
       configured: false,
-      message: 'No email credentials found. Set RESEND_API_KEY (recommended for cloud) or GMAIL_USER & GMAIL_APP_PASSWORD.'
+      message: 'No email credentials found. Set RESEND_API_KEY (recommended for cloud) or GMAIL_USER & GMAIL_APP_PASSWORD in .env.'
     };
   }
 
@@ -302,12 +303,14 @@ export async function sendProUpgradeNotification({
   baseUrl = ''
 }) {
   reloadEnv();
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
-  const senderUser = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const adminEmail = process.env.ADMIN_EMAIL || user || 'petphannoet@gmail.com';
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const senderUser = user || process.env.RESEND_FROM || adminEmail;
 
-  if (!senderUser || !pass) {
-    console.warn('⚠️ [Mailer] Gmail credentials (GMAIL_USER / GMAIL_APP_PASSWORD) not configured. Email skipped.');
+  if (!hasResend && (!user || !pass)) {
+    console.warn('⚠️ [Mailer] Email credentials not configured. Email skipped.');
     return {
       success: false,
       reason: 'credentials_missing',
@@ -536,8 +539,12 @@ export async function sendProUpgradeNotification({
   }
 
   return {
-    success: results.adminSent,
+    success: results.adminSent || results.clientSent,
     results,
+    adminSent: results.adminSent,
+    clientSent: results.clientSent,
+    adminError: results.adminError || null,
+    clientError: results.clientError || null,
     adminEmail
   };
 }
@@ -547,10 +554,13 @@ export async function sendProUpgradeNotification({
  */
 export async function sendProApprovedNotification({ name, email, plan = 'pro', baseUrl = '' }) {
   reloadEnv();
-  const senderUser = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const adminEmail = process.env.ADMIN_EMAIL || user || 'petphannoet@gmail.com';
+  const senderUser = user || process.env.RESEND_FROM || adminEmail;
 
-  if (!senderUser || !pass) {
+  if (!hasResend && (!user || !pass)) {
     console.warn('⚠️ [Mailer] Cannot send approval email: credentials missing.');
     return { success: false, reason: 'credentials_missing' };
   }
@@ -631,11 +641,13 @@ export async function sendAdminReplyToClient({
   baseUrl = ''
 }) {
   reloadEnv();
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
-  const senderUser = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const adminEmail = process.env.ADMIN_EMAIL || user || 'petphannoet@gmail.com';
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const senderUser = user || process.env.RESEND_FROM || adminEmail;
 
-  if (!senderUser || !pass) {
+  if (!hasResend && (!user || !pass)) {
     console.warn('⚠️ [Mailer] Cannot send admin reply: credentials missing.');
     return { success: false, reason: 'credentials_missing' };
   }

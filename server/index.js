@@ -527,7 +527,13 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       requestId,
       baseUrl: requestBaseUrl
     }).then(mailResult => {
-      console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} with auto-reply for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult?.success}`);
+      console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} for ${name} (${email}). Notification to Admin (${targetAdminEmail}): ${mailResult?.adminSent ? 'SENT' : 'FAILED'}. Auto-reply to Client: ${mailResult?.clientSent ? 'SENT' : 'FAILED'}.`);
+      if (mailResult?.clientError) {
+        console.warn(`⚠️ [Client Auto-Reply Warning]: Failed to deliver email to client (${email}): ${mailResult.clientError}`);
+      }
+      if (mailResult?.adminError) {
+        console.warn(`⚠️ [Admin Alert Warning]: Failed to deliver email to admin (${targetAdminEmail}): ${mailResult.adminError}`);
+      }
     }).catch(err => {
       console.error('❌ [Mailer Background Error]:', err.message);
     });
@@ -730,16 +736,18 @@ app.post('/api/admin/test-email', authMiddleware, adminOnly, async (req, res) =>
 // GET /api/admin/email-status (Admin checks if email service is configured)
 app.get('/api/admin/email-status', authMiddleware, adminOnly, async (req, res) => {
   dotenv.config({ path: rootEnv, override: true });
+  const mailUser = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const mailPass = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS || process.env.SMTP_PASS;
   const hasResend = Boolean(process.env.RESEND_API_KEY);
-  const hasGmail = Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  const hasGmail = Boolean(mailUser && mailPass);
   const configured = hasResend || hasGmail;
   res.json({
     configured,
     provider: hasResend ? 'Resend (Cloud HTTPS)' : (hasGmail ? 'Gmail SMTP' : null),
     hasResend,
     hasGmail,
-    gmailUser: process.env.GMAIL_USER ? `${process.env.GMAIL_USER.substring(0, 3)}***@gmail.com` : null,
-    adminEmail: process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com'
+    gmailUser: mailUser ? `${mailUser.substring(0, 3)}***@${mailUser.split('@')[1] || 'gmail.com'}` : null,
+    adminEmail: process.env.ADMIN_EMAIL || mailUser || 'admin@gmail.com'
   });
 });
 

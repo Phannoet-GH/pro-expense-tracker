@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import PricingModal from './PricingModal';
 import CurrencyConverterModal from './CurrencyConverterModal';
+import ShareModal from './ShareModal';
 import { getCurrencyMeta } from '../utils/currency';
 
 export default function Layout() {
@@ -16,6 +17,7 @@ export default function Layout() {
   const { toggleTheme, isDark } = useTheme();
   const { lang, toggleLang, t } = useLanguage();
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -239,6 +241,16 @@ export default function Layout() {
               <i className="bi bi-arrow-repeat ms-1" style={{ fontSize: '11px' }}></i>
             </button>
 
+            {/* Share / Invite Friends Button */}
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-2xs"
+              title="Share SmartFinance PRO with friends"
+            >
+              <i className="bi bi-share-fill text-primary"></i>
+              <span className="d-none d-sm-inline">Share</span>
+            </button>
+
             {/* User Session Info Pill */}
             <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-light">
               <img
@@ -271,14 +283,16 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Global Currency Exchange Calculator Modal */}
+      {/* Global Modals */}
+      <PricingModal />
       <CurrencyConverterModal
         isOpen={showCurrencyModal}
         onClose={() => setShowCurrencyModal(false)}
       />
-
-      {/* Global Subscription Pricing & Upgrade Modal */}
-      <PricingModal />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </div>
   );
 }

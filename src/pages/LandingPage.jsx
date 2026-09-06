@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ShareModal from '../components/ShareModal';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [showShareModal, setShowShareModal] = useState(false);
   const [calcIncome, setCalcIncome] = useState(65000);
   const [calcMonthlyExpense, setCalcMonthlyExpense] = useState(3200);
 
@@ -52,6 +54,14 @@ export default function LandingPage() {
             </ul>
 
             <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                className="btn btn-sm btn-light border rounded-pill px-3 py-2 fw-semibold text-primary shadow-2xs"
+                title="Share SmartFinance PRO with friends"
+              >
+                <i className="bi bi-share-fill me-1"></i>Share
+              </button>
               <Link to="/auth" className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
                 Sign In
               </Link>
@@ -99,6 +109,15 @@ export default function LandingPage() {
               className="btn btn-outline-dark btn-lg rounded-pill px-4 py-3 fw-semibold"
             >
               <i className="bi bi-person-check me-2"></i>Sign In
+            </button>
+
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="btn btn-light border btn-lg rounded-pill px-4 py-3 fw-semibold shadow-xs d-flex align-items-center gap-2"
+              title="Share with friends & colleagues"
+            >
+              <i className="bi bi-share-fill text-primary"></i>
+              <span>Share App</span>
             </button>
           </div>
 
@@ -449,7 +468,14 @@ export default function LandingPage() {
           <div className="small text-secondary">
             &copy; {new Date().getFullYear()} SmartFinance PRO. All rights reserved. Personal finance management platform.
           </div>
-          <div className="d-flex gap-3 small text-secondary">
+          <div className="d-flex align-items-center gap-3 small text-secondary">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="btn btn-sm btn-outline-light rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1"
+            >
+              <i className="bi bi-share-fill"></i>
+              <span>Share App</span>
+            </button>
             <Link to="/auth" className="text-secondary text-decoration-none">Sign In</Link>
             <a href="#features" className="text-secondary text-decoration-none">Features</a>
             <a href="#pricing" className="text-secondary text-decoration-none">Pricing</a>
@@ -457,6 +483,9 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Social Viral Share Modal */}
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} />
     </div>
   );
 }

@@ -1,17 +1,24 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootEnv = path.resolve(__dirname, '../.env');
+
+// Ensure .env is loaded reliably from project root
+dotenv.config({ path: rootEnv });
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { initDatabase, getPool } from './db.js';
 import { sendProUpgradeNotification, sendProApprovedNotification, testGmailConnection } from './mailer.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const distPath = path.resolve(__dirname, '../dist');
 
 const app = express();
@@ -551,6 +558,7 @@ app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, 
 // POST /api/admin/test-email (Admin tests Gmail connection)
 app.post('/api/admin/test-email', authMiddleware, adminOnly, async (req, res) => {
   try {
+    dotenv.config({ path: rootEnv, override: true });
     const result = await testGmailConnection();
     res.json(result);
   } catch (error) {
@@ -560,6 +568,7 @@ app.post('/api/admin/test-email', authMiddleware, adminOnly, async (req, res) =>
 
 // GET /api/admin/email-status (Admin checks if Gmail is configured)
 app.get('/api/admin/email-status', authMiddleware, adminOnly, async (req, res) => {
+  dotenv.config({ path: rootEnv, override: true });
   const configured = Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
   res.json({
     configured,

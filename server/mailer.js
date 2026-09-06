@@ -1,10 +1,27 @@
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootEnv = path.resolve(__dirname, '../.env');
+
+// Ensure .env is loaded from project root
+dotenv.config({ path: rootEnv });
+dotenv.config();
+
+export function reloadEnv() {
+  dotenv.config({ path: rootEnv, override: true });
+  dotenv.config({ override: true });
+}
 
 /**
  * Returns a configured Nodemailer transporter using Gmail SMTP.
  * Strips whitespace from Google App Passwords for resilience.
  */
 export function getTransporter() {
+  reloadEnv();
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
 

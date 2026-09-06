@@ -17,7 +17,7 @@ import bcrypt from 'bcryptjs';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { initDatabase, getPool } from './db.js';
-import { sendProUpgradeNotification, sendProApprovedNotification, testGmailConnection } from './mailer.js';
+import { sendProUpgradeNotification, sendProApprovedNotification, sendAdminReplyToClient, testGmailConnection } from './mailer.js';
 
 const distPath = path.resolve(__dirname, '../dist');
 
@@ -555,6 +555,98 @@ app.patch('/api/admin/upgrade-requests/:id/approve', authMiddleware, adminOnly, 
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to approve upgrade request' });
+  }
+});
+
+// POST /api/admin/upgrade-requests/:id/reply (Admin replies directly to client inquiry)
+app.post('/api/admin/upgrade-requests/:id/reply', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { replyMessage, subject, approvePro } = req.body;
+
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.status(400).json({ error: 'Reply message cannot be empty' });
+    }
+
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM upgrade_requests WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Inquiry request not found' });
+
+    const request = rows[0];
+    const newStatus = approvePro ? 'approved' : request.status;
+
+    await pool.query(
+      `UPDATE upgrade_requests
+       SET admin_reply = ?, replied_at = NOW(), status = ?
+       WHERE id = ?`,
+      [replyMessage.trim(), newStatus, id]
+    );
+
+    // If approvePro was checked, also upgrade user account immediately
+    if (approvePro) {
+      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await pool.query(
+        `UPDATE users
+         SET plan_tier = 'pro', subscription_status = 'active', current_period_end = ?
+         WHERE email = ? OR id = ?`,
+        [periodEnd, request.user_email, request.user_id]
+      );
+    }
+
+    // Send reply email asynchronously in background
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
+    sendAdminReplyToClient({
+      clientName: request.user_name,
+      clientEmail: request.user_email,
+      replyMessage: replyMessage.trim(),
+      subject: subject || `💬 [Reply from Pet Phannoet] Regarding your SmartFinance PRO Inquiry`,
+      plan: request.plan,
+      price: request.price,
+      requestId: request.id
+    }).then(mailResult => {
+      console.log(`✉️ [Admin Reply] Delivered message from ${adminEmail} to client ${request.user_email}. Success: ${mailResult?.success}`);
+    }).catch(err => {
+      console.error('❌ [Admin Reply Error]:', err.message);
+    });
+
+    res.json({
+      success: true,
+      message: `Reply sent successfully to ${request.user_name} (${request.user_email})!`,
+      replied_at: new Date().toISOString(),
+      admin_reply: replyMessage.trim(),
+      status: newStatus
+    });
+  } catch (error) {
+    console.error('Admin reply error:', error);
+    res.status(500).json({ error: 'Failed to send reply to client' });
+  }
+});
+
+// GET /api/client/inquiry-reply (Client checks for latest admin reply)
+app.get('/api/client/inquiry-reply', authMiddleware, async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT id, plan, price, message, admin_reply, replied_at, status, created_at
+       FROM upgrade_requests
+       WHERE (user_id = ? OR user_email = ?) AND admin_reply IS NOT NULL
+       ORDER BY replied_at DESC, created_at DESC
+       LIMIT 1`,
+      [req.user.id, req.user.email]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ success: true, reply: null });
+    }
+
+    res.json({
+      success: true,
+      reply: rows[0],
+      adminEmail: process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com'
+    });
+  } catch (error) {
+    console.error('Fetch client inquiry reply error:', error);
+    res.status(500).json({ error: 'Failed to fetch reply' });
   }
 });
 

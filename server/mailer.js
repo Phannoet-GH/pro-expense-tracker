@@ -559,3 +559,73 @@ export async function sendProApprovedNotification({ name, email }) {
     console.error(`❌ [Mailer] Failed to send activation email to ${email}:`, err.message);
   }
 }
+
+/**
+ * Sends a direct message/reply from Admin (petphannoet@gmail.com) to the client.
+ */
+export async function sendAdminReplyToClient({
+  clientName,
+  clientEmail,
+  replyMessage,
+  subject,
+  plan = 'pro',
+  price = '$1/mo',
+  requestId = ''
+}) {
+  reloadEnv();
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'petphannoet@gmail.com';
+  const senderUser = process.env.GMAIL_USER || 'petphannoet@gmail.com';
+
+  const replyHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
+        .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #2563eb, #7c3aed); padding: 32px 24px; color: #ffffff; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+        .header p { margin: 6px 0 0; opacity: 0.9; font-size: 14px; }
+        .content { padding: 28px 24px; font-size: 15px; line-height: 1.6; color: #334155; }
+        .message-box { background: #eff6ff; border-left: 4px solid #2563eb; border-radius: 8px; padding: 18px 20px; margin: 20px 0; color: #1e293b; font-size: 15px; white-space: pre-wrap; line-height: 1.6; font-style: normal; }
+        .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; }
+        .cta-btn { display: block; width: 100%; box-sizing: border-box; text-align: center; background: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 15px; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>💬 Message from Administrator</h1>
+          <p>SmartFinance PRO &bull; Support &amp; Verification</p>
+        </div>
+        <div class="content">
+          <p>Hi <strong>${clientName}</strong>,</p>
+          <p>You have received a reply from <strong>${adminEmail}</strong> regarding your <strong>SmartFinance PRO (${price})</strong> inquiry:</p>
+
+          <div class="message-box">${replyMessage}</div>
+
+          <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
+            💡 <strong>Need to reply?</strong> You can hit <strong>Reply</strong> in your email app to respond directly to ${adminEmail}.
+          </p>
+
+          <a href="http://localhost:5173/dashboard" class="cta-btn">Open SmartFinance Portal</a>
+        </div>
+        <div class="footer">
+          SmartFinance PRO &bull; Direct Support from ${adminEmail}
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMailWithFallback({
+    from: `"Pet Phannoet (SmartFinance)" <${senderUser}>`,
+    to: clientEmail,
+    replyTo: adminEmail,
+    subject: subject || `💬 [Reply from Pet Phannoet] Regarding your SmartFinance PRO Inquiry`,
+    html: replyHtml,
+    text: `Hi ${clientName},\n\nYou have received a reply from ${adminEmail} regarding your PRO upgrade inquiry:\n\n${replyMessage}\n\nTo reply, simply reply directly to this email (${adminEmail}).`
+  });
+}
+

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo, useRef } from 'react';
+import React, { useContext, useState, useMemo, useRef, useEffect } from 'react';
 import { ExpenseContext } from '../context/ExpenseContext';
 import { UserContext } from '../context/UserContext';
 import { useBilling } from '../context/BillingContext';
@@ -31,6 +31,43 @@ export default function Dashboard() {
 
   const { token } = useContext(UserContext) || {};
   const { isPro, billingData, openPricingModal, refreshBilling } = useBilling();
+
+  // Admin reply notification states
+  const [inquiryReply, setInquiryReply] = useState(null);
+  const [adminEmail, setAdminEmail] = useState('petphannoet@gmail.com');
+  const [replyDismissed, setReplyDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchReply = async () => {
+      try {
+        const res = await apiFetch('/api/client/inquiry-reply', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const { ok, data } = await parseResponse(res);
+        if (ok && data?.reply) {
+          const isDismissed = localStorage.getItem(`dismissed_reply_${data.reply.id}`);
+          if (!isDismissed) {
+            setInquiryReply(data.reply);
+            if (data.adminEmail) setAdminEmail(data.adminEmail);
+            if (data.reply.status === 'approved' && !isPro) {
+              refreshBilling?.();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch inquiry reply:', err);
+      }
+    };
+    fetchReply();
+  }, [token, isPro, refreshBilling]);
+
+  const handleDismissReply = () => {
+    if (inquiryReply?.id) {
+      localStorage.setItem(`dismissed_reply_${inquiryReply.id}`, 'true');
+    }
+    setReplyDismissed(true);
+  };
 
   // Transaction form type toggle: 'expense' | 'income'
   const [txType, setTxType] = useState('expense');
@@ -223,6 +260,77 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Admin Message Notification Banner */}
+      {inquiryReply && !replyDismissed && (
+        <div
+          className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden border-start border-4 border-primary"
+          style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%)' }}
+        >
+          <div className="card-body p-4">
+            <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <span className="badge bg-primary rounded-pill px-3 py-1">
+                  <i className="bi bi-chat-left-text-fill me-1"></i> Message from Administrator
+                </span>
+                <span className="text-dark fw-bold small">
+                  {adminEmail}
+                </span>
+                {inquiryReply.status === 'approved' && (
+                  <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                    <i className="bi bi-check-circle-fill me-1"></i> PRO Upgrade Approved
+                  </span>
+                )}
+                <span className="text-muted small">
+                  {inquiryReply.replied_at ? new Date(inquiryReply.replied_at).toLocaleString() : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary rounded-circle"
+                style={{ width: '28px', height: '28px', padding: 0 }}
+                onClick={handleDismissReply}
+                title="Dismiss message"
+              >
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+
+            <div className="bg-white p-3 rounded-3 border shadow-xs text-dark my-3" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+              {inquiryReply.admin_reply}
+            </div>
+
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-1">
+              <div className="text-muted small">
+                <i className="bi bi-info-circle me-1"></i>
+                Regarding your <strong>{inquiryReply.plan?.toUpperCase()}</strong> inquiry ({inquiryReply.price})
+              </div>
+              <div className="d-flex gap-2 align-items-center">
+                <a
+                  href={`mailto:${adminEmail}?subject=Re:%20SmartFinance%20PRO%20Inquiry%20Response`}
+                  className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                >
+                  <i className="bi bi-reply-fill me-1"></i> Reply via Email
+                </a>
+                {inquiryReply.status === 'approved' && !isPro && (
+                  <button
+                    onClick={() => refreshBilling?.()}
+                    className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-xs"
+                  >
+                    <i className="bi bi-arrow-clockwise me-1"></i> Activate PRO in Session
+                  </button>
+                )}
+                <button
+                  onClick={handleDismissReply}
+                  className="btn btn-sm btn-light border rounded-pill px-3"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4 KPI Top Cards */}
       <div className="row g-3 mb-4">

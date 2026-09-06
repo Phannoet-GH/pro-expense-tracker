@@ -126,6 +126,8 @@ export async function initDatabase() {
         price VARCHAR(50) NOT NULL DEFAULT '$2/mo',
         payment_method VARCHAR(100) NULL,
         message TEXT NULL,
+        admin_reply TEXT NULL,
+        replied_at TIMESTAMP NULL,
         status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -149,6 +151,8 @@ export async function initDatabase() {
     try { await pool.query(`ALTER TABLE expenses ADD COLUMN tax_category VARCHAR(100) DEFAULT 'General Business';`); } catch {}
     try { await pool.query(`ALTER TABLE incomes ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
     try { await pool.query(`ALTER TABLE savings_goals ADD COLUMN user_id VARCHAR(64) NOT NULL DEFAULT 'user-1';`); } catch {}
+    try { await pool.query(`ALTER TABLE upgrade_requests ADD COLUMN admin_reply TEXT NULL;`); } catch {}
+    try { await pool.query(`ALTER TABLE upgrade_requests ADD COLUMN replied_at TIMESTAMP NULL;`); } catch {}
 
     // Drop legacy private client fields from users table if they exist
     try { await pool.query(`ALTER TABLE users DROP COLUMN monthly_target_income;`); } catch {}

@@ -15,6 +15,14 @@ export default function AdminUsers() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState(null);
 
+  // Reply modal states
+  const [replyModalRequest, setReplyModalRequest] = useState(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [replySubject, setReplySubject] = useState('');
+  const [approveProOnReply, setApproveProOnReply] = useState(true);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replyFeedback, setReplyFeedback] = useState(null);
+
   const fetchEmailStatus = async () => {
     if (!token) return;
     try {
@@ -96,6 +104,60 @@ export default function AdminUsers() {
       }
     } catch (err) {
       console.error('Failed to approve request:', err);
+    }
+  };
+
+  const openReplyModal = (req) => {
+    setReplyModalRequest(req);
+    setReplySubject(`💬 [Reply from Pet Phannoet] Regarding your SmartFinance PRO Inquiry`);
+    setApproveProOnReply(req.status === 'pending');
+    setReplyFeedback(null);
+    setReplyMessage(
+      req.admin_reply ||
+      `Hi ${req.user_name},\n\nThank you for reaching out regarding your SmartFinance PRO subscription!\n\nYour account has been verified and upgraded to PRO Tier. You now have unlimited AI receipt scans, CPA tax deduction tracking, and financial forecasting unlocked.\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator`
+    );
+  };
+
+  const handleSendReply = async (e) => {
+    if (e) e.preventDefault();
+    if (!replyMessage.trim() || !replyModalRequest) return;
+    setSendingReply(true);
+    setReplyFeedback(null);
+
+    try {
+      const res = await apiFetch(`/api/admin/upgrade-requests/${replyModalRequest.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          replyMessage: replyMessage.trim(),
+          subject: replySubject.trim(),
+          approvePro: approveProOnReply
+        })
+      });
+
+      const { ok, data } = await parseResponse(res);
+      if (ok) {
+        setActionMessage(`✅ Reply sent successfully to ${replyModalRequest.user_email}!`);
+        setTimeout(() => setActionMessage(null), 5000);
+        setReplyModalRequest(null);
+        fetchUpgradeRequests();
+        fetchUsers();
+      } else {
+        setReplyFeedback({
+          success: false,
+          message: data?.error || 'Failed to send reply'
+        });
+      }
+    } catch (err) {
+      setReplyFeedback({
+        success: false,
+        message: err.message || 'Network error sending reply'
+      });
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -313,8 +375,16 @@ export default function AdminUsers() {
                       </span>
                     </td>
                     <td>{req.payment_method || 'Standard'}</td>
-                    <td className="text-muted" style={{ maxWidth: '200px' }}>
-                      {req.message || '—'}
+                    <td className="text-muted" style={{ maxWidth: '220px' }}>
+                      <div className="text-truncate" title={req.message}>{req.message || '—'}</div>
+                      {req.admin_reply && (
+                        <div className="mt-1 small text-success d-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
+                          <i className="bi bi-arrow-return-right"></i>
+                          <span className="text-truncate fw-semibold" title={req.admin_reply}>
+                            Replied: {req.admin_reply}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="font-monospace text-muted" style={{ fontSize: '11px' }}>
                       {req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A'}
@@ -323,16 +393,21 @@ export default function AdminUsers() {
                       <span className={`badge rounded-pill ${req.status === 'approved' ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
                         {req.status === 'approved' ? 'Approved' : 'Pending'}
                       </span>
+                      {req.admin_reply && (
+                        <span className="badge bg-info-subtle text-primary border border-info-subtle rounded-pill ms-1" style={{ fontSize: '10px' }}>
+                          <i className="bi bi-reply-fill"></i> Replied
+                        </span>
+                      )}
                     </td>
                     <td className="text-end">
                       <div className="d-inline-flex gap-2 justify-content-end align-items-center">
-                        <a
-                          href={`mailto:${req.user_email}?subject=Re:%20SmartFinance%20PRO%20Upgrade%20Inquiry%20(${encodeURIComponent(req.plan || 'PRO')})&body=Hi%20${encodeURIComponent(req.user_name || 'Client')},%0D%0A%0D%0AThank%20you%20for%20your%20PRO%20upgrade%20inquiry!%0D%0A%0D%0A`}
-                          className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
-                          title={`Send email directly to ${req.user_email}`}
+                        <button
+                          onClick={() => openReplyModal(req)}
+                          className="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-xs"
+                          title={`Send reply message to ${req.user_email}`}
                         >
                           <i className="bi bi-reply-fill me-1"></i> Reply
-                        </a>
+                        </button>
                         {req.status === 'pending' && (
                           <button
                             onClick={() => handleApproveRequest(req.id)}
@@ -481,6 +556,183 @@ export default function AdminUsers() {
           </table>
         </div>
       </div>
+
+      {/* Interactive Reply Modal */}
+      {replyModalRequest && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', zIndex: 1060 }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+              <div className="modal-header bg-gradient bg-primary text-white border-0 px-4 py-3">
+                <div>
+                  <h5 className="modal-title fw-bold d-flex align-items-center gap-2 mb-1">
+                    <i className="bi bi-reply-all-fill"></i> Reply to Client
+                  </h5>
+                  <p className="mb-0 text-white-50 small">
+                    Direct message from <strong>{emailStatus?.adminEmail || 'petphannoet@gmail.com'}</strong> to <strong>{replyModalRequest.user_name}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setReplyModalRequest(null)}
+                ></button>
+              </div>
+
+              <form onSubmit={handleSendReply}>
+                <div className="modal-body px-4 py-3">
+                  {/* Client Context Banner */}
+                  <div className="bg-light p-3 rounded-3 mb-3 border">
+                    <div className="row g-2 align-items-center">
+                      <div className="col-md-6">
+                        <span className="text-muted small">Client Name &amp; Email:</span>
+                        <div className="fw-bold text-dark">{replyModalRequest.user_name} &lt;{replyModalRequest.user_email}&gt;</div>
+                      </div>
+                      <div className="col-md-6 text-md-end">
+                        <span className="text-muted small">Requested Plan:</span>
+                        <div className="fw-bold text-primary">{replyModalRequest.plan?.toUpperCase()} ({replyModalRequest.price}) &bull; {replyModalRequest.payment_method || 'Standard'}</div>
+                      </div>
+                      {replyModalRequest.message && (
+                        <div className="col-12 mt-2 pt-2 border-top">
+                          <span className="text-muted small">Client's Inquiry Note:</span>
+                          <div className="fst-italic text-secondary small bg-white p-2 rounded border mt-1">
+                            "{replyModalRequest.message}"
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Template Quick Selection */}
+                  <div className="mb-3">
+                    <label className="form-label text-muted small fw-semibold mb-2">
+                      <i className="bi bi-lightning-charge-fill text-warning me-1"></i> Quick Response Templates:
+                    </label>
+                    <div className="d-flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary rounded-pill"
+                        onClick={() => {
+                          setReplyMessage(
+                            `Hi ${replyModalRequest.user_name},\n\nThank you for reaching out regarding your SmartFinance PRO subscription!\n\nYour payment has been verified and your account is now upgraded to PRO Tier. You can now enjoy unlimited AI receipt scans, CPA tax write-offs, and multi-currency exports!\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator`
+                          );
+                          setApproveProOnReply(true);
+                        }}
+                      >
+                        🎉 Activate PRO &amp; Thank You
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary rounded-pill"
+                        onClick={() => {
+                          setReplyMessage(
+                            `Hi ${replyModalRequest.user_name},\n\nThank you for your PRO upgrade inquiry!\n\nCould you please reply directly with a screenshot or receipt of your payment transfer so I can verify and activate your PRO subscription right away?\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator`
+                          );
+                          setApproveProOnReply(false);
+                        }}
+                      >
+                        💳 Request Payment Proof
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary rounded-pill"
+                        onClick={() => {
+                          setReplyMessage(
+                            `Hi ${replyModalRequest.user_name},\n\nThank you for contacting SmartFinance. I am reviewing your request and will follow up with you shortly. If you have any questions, feel free to reply to this message.\n\nBest regards,\nPet Phannoet\nSmartFinance Administrator`
+                          );
+                        }}
+                      >
+                        💬 General Support Follow-up
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Subject Input */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-dark">Email Subject:</label>
+                    <input
+                      type="text"
+                      className="form-control rounded-3"
+                      value={replySubject}
+                      onChange={e => setReplySubject(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Message Textarea */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-dark">
+                      Reply Message to {replyModalRequest.user_name}:
+                    </label>
+                    <textarea
+                      className="form-control rounded-3"
+                      rows="6"
+                      value={replyMessage}
+                      onChange={e => setReplyMessage(e.target.value)}
+                      placeholder="Type your reply to the client..."
+                      required
+                    ></textarea>
+                    <div className="form-text small text-muted">
+                      💡 Delivered straight to the client's email inbox and posted in their SmartFinance dashboard notification banner.
+                    </div>
+                  </div>
+
+                  {/* Also Approve Checkbox */}
+                  <div className="form-check form-switch p-3 bg-success-subtle rounded-3 border border-success-subtle mb-2">
+                    <input
+                      className="form-check-input ms-0 me-2"
+                      type="checkbox"
+                      id="approveProCheckbox"
+                      checked={approveProOnReply}
+                      onChange={e => setApproveProOnReply(e.target.checked)}
+                    />
+                    <label className="form-check-label fw-semibold text-success-emphasis small" htmlFor="approveProCheckbox">
+                      Also unlock PRO tier for {replyModalRequest.user_name} immediately upon sending
+                    </label>
+                  </div>
+
+                  {replyFeedback && !replyFeedback.success && (
+                    <div className="alert alert-danger rounded-3 py-2 px-3 small mt-3">
+                      <i className="bi bi-exclamation-octagon-fill me-1"></i> {replyFeedback.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer bg-light px-4 py-3 border-top">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary rounded-pill px-4"
+                    onClick={() => setReplyModalRequest(null)}
+                    disabled={sendingReply}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary rounded-pill px-4 fw-bold shadow-sm"
+                    disabled={sendingReply || !replyMessage.trim()}
+                  >
+                    {sendingReply ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Sending Reply...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-send-fill me-1"></i> Send Reply to {replyModalRequest.user_email}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

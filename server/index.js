@@ -481,8 +481,18 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       [requestId, userId, name, email, plan, price, payment_method || 'Standard Inquiry', message || '']
     );
 
-    // Send email notification to Admin Gmail and confirmation to client
-    const mailResult = await sendProUpgradeNotification({
+    const targetAdminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
+
+    // Respond immediately to client so UI never hangs or times out
+    res.json({
+      success: true,
+      requestId,
+      message: `Your upgrade request has been submitted! A notification was sent to Admin (${targetAdminEmail}). Your PRO access will be activated upon verification.`,
+      adminEmail: targetAdminEmail
+    });
+
+    // Dispatch email notifications asynchronously in background
+    sendProUpgradeNotification({
       name,
       email,
       plan,
@@ -490,17 +500,10 @@ app.post('/api/billing/upgrade-request', async (req, res) => {
       payment_method,
       message,
       requestId
-    });
-
-    const targetAdminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com';
-    console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult.success}`);
-
-    res.json({
-      success: true,
-      requestId,
-      message: `Your upgrade request has been submitted! A notification was sent to Admin (${targetAdminEmail}). Your PRO access will be activated upon verification.`,
-      adminEmail: targetAdminEmail,
-      emailSent: mailResult.success
+    }).then(mailResult => {
+      console.log(`📩 [PRO Upgrade Request] Stored request ${requestId} for ${name} (${email}). Notification dispatched to ${targetAdminEmail}. Email success: ${mailResult?.success}`);
+    }).catch(err => {
+      console.error('❌ [Mailer Background Error]:', err.message);
     });
   } catch (error) {
     console.error('Upgrade request error:', error);
@@ -566,12 +569,17 @@ app.post('/api/admin/test-email', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-// GET /api/admin/email-status (Admin checks if Gmail is configured)
+// GET /api/admin/email-status (Admin checks if email service is configured)
 app.get('/api/admin/email-status', authMiddleware, adminOnly, async (req, res) => {
   dotenv.config({ path: rootEnv, override: true });
-  const configured = Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const hasGmail = Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  const configured = hasResend || hasGmail;
   res.json({
     configured,
+    provider: hasResend ? 'Resend (Cloud HTTPS)' : (hasGmail ? 'Gmail SMTP' : null),
+    hasResend,
+    hasGmail,
     gmailUser: process.env.GMAIL_USER ? `${process.env.GMAIL_USER.substring(0, 3)}***@gmail.com` : null,
     adminEmail: process.env.ADMIN_EMAIL || process.env.GMAIL_USER || 'admin@gmail.com'
   });

@@ -17,6 +17,35 @@ export function reloadEnv() {
 }
 
 /**
+ * Dispatches an email via Resend HTTPS API (Port 443 - works everywhere, immune to cloud SMTP blocks).
+ */
+export async function sendViaResend({ to, subject, html, text }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey.trim()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM || 'SmartFinance PRO <onboarding@resend.dev>',
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+      text
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Resend API error (${res.status})`);
+  }
+  return data;
+}
+
+/**
  * Returns a configured Nodemailer transporter using Gmail SMTP.
  * Defaults to port 587 (STARTTLS) which is widely supported across cloud providers,
  * with support for port 465 (SSL).
@@ -38,9 +67,9 @@ export function getTransporter(customPort) {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port,
     secure,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 12000,
+    connectionTimeout: 4000,
+    greetingTimeout: 4000,
+    socketTimeout: 6000,
     auth: {
       user: user.trim(),
       pass: pass.trim().replace(/\s+/g, '') // Handles spaces in copied 16-char app passwords
@@ -52,28 +81,63 @@ export function getTransporter(customPort) {
 }
 
 /**
- * Verifies if Gmail credentials are valid with automatic port fallback (587 -> 465).
+ * Verifies if email service is active (supports Resend HTTPS API and Gmail SMTP).
  */
 export async function testGmailConnection() {
   reloadEnv();
+  const resendKey = process.env.RESEND_API_KEY;
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
+  const adminEmail = process.env.ADMIN_EMAIL || user || 'petphannoet@gmail.com';
 
+  // 1. If Resend API Key is set, test Resend HTTPS (works 100% on Railway/Render)
+  if (resendKey) {
+    try {
+      await sendViaResend({
+        to: adminEmail,
+        subject: `🧪 [Test Email] SmartFinance PRO Email System is Connected (via Resend)!`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; max-width: 550px; margin: 0 auto;">
+            <h2 style="color: #2563eb; margin-top: 0;">✅ Cloud Email Service Connected!</h2>
+            <p style="color: #334155; font-size: 15px; line-height: 1.5;">This email was sent via Resend HTTPS API (Port 443). Your cloud server is fully capable of sending notifications!</p>
+            <div style="background-color: #ffffff; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 16px 0;">
+              <p style="margin: 4px 0; font-size: 14px;"><strong>Provider:</strong> Resend Cloud HTTPS API</p>
+              <p style="margin: 4px 0; font-size: 14px;"><strong>Recipient:</strong> ${adminEmail}</p>
+              <p style="margin: 4px 0; font-size: 14px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">You will receive live PRO upgrade notifications here.</p>
+          </div>
+        `,
+        text: `SmartFinance PRO: Cloud email test delivered successfully to ${adminEmail} via Resend at ${new Date().toLocaleString()}`
+      });
+
+      return {
+        configured: true,
+        provider: 'Resend',
+        message: `Live test email sent successfully via Resend API to ${adminEmail}! Please check your inbox (and Spam folder).`
+      };
+    } catch (err) {
+      return {
+        configured: false,
+        error: `Resend API Error: ${err.message}. Please check your RESEND_API_KEY in cloud variables.`
+      };
+    }
+  }
+
+  // 2. Otherwise test Gmail SMTP
   if (!user || !pass) {
     return {
       configured: false,
-      message: 'GMAIL_USER or GMAIL_APP_PASSWORD is not configured in environment variables'
+      message: 'No email credentials found. Set RESEND_API_KEY (recommended for cloud) or GMAIL_USER & GMAIL_APP_PASSWORD.'
     };
   }
 
-  // 1. Try port 587 (STARTTLS) first — best for cloud hosts
+  // Try port 587 (STARTTLS) first
   let primaryErr = null;
-  const adminEmail = process.env.ADMIN_EMAIL || user;
   try {
     const t587 = getTransporter(587);
     await t587.verify();
 
-    // Actually send a test email to admin so user receives it in their inbox
     await t587.sendMail({
       from: `"Pro Expense Tracker" <${user}>`,
       to: adminEmail,
@@ -88,7 +152,6 @@ export async function testGmailConnection() {
             <p style="margin: 4px 0; font-size: 14px;"><strong>Port:</strong> 587 (STARTTLS)</p>
             <p style="margin: 4px 0; font-size: 14px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
           </div>
-          <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">You will receive client PRO upgrade notifications at this email address.</p>
         </div>
       `,
       text: `SmartFinance PRO: Gmail SMTP test email delivered successfully to ${adminEmail} at ${new Date().toLocaleString()}`
@@ -104,7 +167,7 @@ export async function testGmailConnection() {
     console.warn('⚠️ [Mailer] Port 587 check failed, attempting port 465 fallback...', err587.message);
   }
 
-  // 2. Fallback to port 465 (SSL)
+  // Fallback to port 465 (SSL)
   try {
     const t465 = getTransporter(465);
     await t465.verify();
@@ -123,7 +186,6 @@ export async function testGmailConnection() {
             <p style="margin: 4px 0; font-size: 14px;"><strong>Port:</strong> 465 (SSL)</p>
             <p style="margin: 4px 0; font-size: 14px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
           </div>
-          <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">You will receive client PRO upgrade notifications at this email address.</p>
         </div>
       `,
       text: `SmartFinance PRO: Gmail SMTP test email delivered successfully to ${adminEmail} at ${new Date().toLocaleString()}`
@@ -153,7 +215,7 @@ export async function testGmailConnection() {
     if (isBadCredentials) {
       errorDetail = 'Invalid Gmail App Password. Make sure 2-Step Verification is ON and create a 16-character App Password at https://myaccount.google.com/apppasswords.';
     } else if (isTimeout) {
-      errorDetail = 'Connection timed out to smtp.gmail.com (ports 587 & 465). If your server is on a cloud host (like Railway/Render), the provider may be blocking outbound SMTP ports. Contact your cloud host to enable outbound email or use an email API relay.';
+      errorDetail = 'Railway blocks outbound SMTP ports (587 & 465). To send emails reliably on Railway, get a free API key at https://resend.com (free, takes 30s) and add RESEND_API_KEY to your Railway Variables.';
     }
 
     return {
@@ -164,14 +226,29 @@ export async function testGmailConnection() {
 }
 
 /**
- * Dispatches email notifications when a client requests a PRO upgrade:
- * 1. An alert email to the Admin Gmail with client and payment details.
- * 2. A confirmation receipt email to the client.
- */
-/**
- * Sends mail with automatic port fallback (587 -> 465).
+ * Sends mail with priority to HTTPS API (Resend) if configured,
+ * otherwise falls back to Gmail SMTP (ports 587 / 465).
  */
 async function sendMailWithFallback(mailOptions) {
+  reloadEnv();
+
+  // 1. If RESEND_API_KEY is configured, use fast HTTPS API (never blocked by Railway/Render!)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      console.log('🚀 [Mailer] Sending via Resend HTTPS API...');
+      return await sendViaResend({
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text
+      });
+    } catch (resendErr) {
+      console.error('❌ [Mailer] Resend API failed:', resendErr.message);
+      // Fall through to SMTP if available
+    }
+  }
+
+  // 2. Try Gmail SMTP port 587
   let primaryError = null;
   try {
     const t587 = getTransporter(587);
@@ -181,6 +258,7 @@ async function sendMailWithFallback(mailOptions) {
     console.warn('⚠️ [Mailer] sendMail on port 587 failed, trying port 465 fallback...', err587.message);
   }
 
+  // 3. Fallback to Gmail SMTP port 465
   const t465 = getTransporter(465);
   if (t465) return await t465.sendMail(mailOptions);
   if (primaryError) throw primaryError;

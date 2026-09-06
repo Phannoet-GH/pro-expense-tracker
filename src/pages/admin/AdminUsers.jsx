@@ -325,14 +325,23 @@ export default function AdminUsers() {
                       </span>
                     </td>
                     <td className="text-end">
-                      {req.status === 'pending' && (
-                        <button
-                          onClick={() => handleApproveRequest(req.id)}
-                          className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
+                      <div className="d-inline-flex gap-2 justify-content-end align-items-center">
+                        <a
+                          href={`mailto:${req.user_email}?subject=Re:%20SmartFinance%20PRO%20Upgrade%20Inquiry%20(${encodeURIComponent(req.plan || 'PRO')})&body=Hi%20${encodeURIComponent(req.user_name || 'Client')},%0D%0A%0D%0AThank%20you%20for%20your%20PRO%20upgrade%20inquiry!%0D%0A%0D%0A`}
+                          className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                          title={`Send email directly to ${req.user_email}`}
                         >
-                          <i className="bi bi-check2-circle me-1"></i> Approve PRO
-                        </button>
-                      )}
+                          <i className="bi bi-reply-fill me-1"></i> Reply
+                        </a>
+                        {req.status === 'pending' && (
+                          <button
+                            onClick={() => handleApproveRequest(req.id)}
+                            className="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm"
+                          >
+                            <i className="bi bi-check2-circle me-1"></i> Approve PRO
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

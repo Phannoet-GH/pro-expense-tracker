@@ -19,9 +19,21 @@ export function reloadEnv() {
 /**
  * Dispatches an email via Resend HTTPS API (Port 443 - works everywhere, immune to cloud SMTP blocks).
  */
-export async function sendViaResend({ to, subject, html, text }) {
+export async function sendViaResend({ to, subject, html, text, replyTo }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return null;
+
+  const payload = {
+    from: process.env.RESEND_FROM || 'SmartFinance PRO <onboarding@resend.dev>',
+    to: Array.isArray(to) ? to : [to],
+    subject,
+    html,
+    text
+  };
+
+  if (replyTo) {
+    payload.reply_to = Array.isArray(replyTo) ? replyTo : [replyTo];
+  }
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -29,13 +41,7 @@ export async function sendViaResend({ to, subject, html, text }) {
       'Authorization': `Bearer ${apiKey.trim()}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'SmartFinance PRO <onboarding@resend.dev>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-      text
-    })
+    body: JSON.stringify(payload)
   });
 
   const data = await res.json();
@@ -359,18 +365,27 @@ export async function sendProUpgradeNotification({
               </div>
             </div>
 
-            ${message ? `
-              <div class="note-box">
-                <strong>Client Message:</strong>
-                <p style="margin: 6px 0 0;">"${message}"</p>
+            <!-- Client Message & Direct Reply Section -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+              <div style="font-weight: 700; color: #166534; font-size: 14px; margin-bottom: 8px;">
+                💬 Message from Client (${name}):
               </div>
-            ` : ''}
+              <div style="background: #ffffff; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 6px; font-size: 15px; color: #1e293b; font-style: italic; line-height: 1.5; margin-bottom: 14px;">
+                "${message ? message : '(No custom note attached — standard upgrade request)'}"
+              </div>
+              <p style="margin: 0 0 12px; font-size: 13px; color: #374151;">
+                💡 <strong>Reply to Client:</strong> You can hit <strong>Reply</strong> in your Gmail to send an email straight to <strong>${email}</strong>, or click the button below:
+              </p>
+              <a href="mailto:${email}?subject=Re:%20SmartFinance%20PRO%20Upgrade%20Inquiry%20(${encodeURIComponent(plan.toUpperCase())})&body=Hi%20${encodeURIComponent(name)},%0D%0A%0D%0AThank%20you%20for%20your%20message%20regarding%20the%20PRO%20plan!%0D%0A%0D%0A" style="display: inline-block; background: #059669; color: #ffffff !important; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                ✉️ Click to Reply to ${name} (${email})
+              </a>
+            </div>
 
             <p style="font-size: 14px; color: #475569; margin: 0 0 16px;">
-              Please log in to your <strong>Admin Dashboard &gt; User Management</strong> to verify the payment and approve this upgrade.
+              When payment is verified, click below to open your <strong>Admin Dashboard &gt; User Management</strong> to approve this upgrade:
             </p>
 
-            <a href="http://localhost:5173/admin/users" class="cta-btn">Open Admin Dashboard</a>
+            <a href="http://localhost:5173/admin/users" class="cta-btn">Open Admin Dashboard &amp; Approve PRO</a>
           </div>
           <div class="footer">
             Pro Expense Tracker &bull; Automated System Notification
@@ -383,9 +398,10 @@ export async function sendProUpgradeNotification({
     await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: adminEmail,
-      subject: `🔥 [PRO Request] ${name} requested an upgrade to PRO (${price})`,
+      replyTo: `${name} <${email}>`,
+      subject: `🔥 [PRO Request] ${name} (${email}) requested PRO (${price})`,
       html: adminHtml,
-      text: `New PRO Upgrade Request:\nClient: ${name} (${email})\nPlan: ${plan} (${price})\nPayment: ${payment_method}\nMessage: ${message || 'None'}\nRequest ID: ${requestId}`
+      text: `New PRO Upgrade Request:\nClient: ${name} (${email})\nPlan: ${plan} (${price})\nPayment: ${payment_method}\nMessage: ${message || 'None'}\nRequest ID: ${requestId}\n\nTo reply directly to ${name}, hit Reply in your email app or write to: ${email}`
     });
 
     console.log(`✅ [Mailer] Admin alert sent to ${adminEmail} for client ${email}`);
@@ -420,12 +436,12 @@ export async function sendProUpgradeNotification({
           </div>
           <div class="content">
             <p>Hi <strong>${name}</strong>,</p>
-            <p>Thank you for choosing <strong>Pro Expense Tracker</strong>! We have received your request to upgrade to the <strong>PRO Plan</strong>.</p>
-            
+            <p>Thank you for requesting an upgrade to <strong>SmartFinance PRO</strong>! We have received your inquiry and our administrator will review your payment details shortly.</p>
+
             <div class="summary-card">
               <div class="summary-row">
-                <span>Plan:</span>
-                <strong>PRO (${price})</strong>
+                <span>Requested Plan:</span>
+                <strong>SmartFinance PRO (${price})</strong>
               </div>
               <div class="summary-row">
                 <span>Payment Method:</span>
@@ -438,7 +454,7 @@ export async function sendProUpgradeNotification({
             </div>
 
             <p>Our administrator is reviewing your payment. As soon as verification is complete, all PRO features (tax deduction tracking, unlimited AI scans, and advanced reports) will be unlocked automatically on your account.</p>
-            <p>If you have any questions, feel free to reply directly to this email.</p>
+            <p>If you have any questions or need to follow up, feel free to reply directly to this email.</p>
           </div>
           <div class="footer">
             Pro Expense Tracker Team &bull; Phnom Penh, Cambodia
@@ -451,9 +467,10 @@ export async function sendProUpgradeNotification({
     await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: email,
+      replyTo: adminEmail,
       subject: `✨ We received your PRO Upgrade request - Pro Expense Tracker`,
       html: clientHtml,
-      text: `Hi ${name},\n\nWe received your PRO Upgrade request for ${plan} (${price}). Our administrator is verifying your payment and will activate your PRO tier shortly!\n\nRequest ID: ${requestId}`
+      text: `Hi ${name},\n\nWe received your PRO Upgrade request for ${plan} (${price}). Our administrator (${adminEmail}) is verifying your payment and will activate your PRO tier shortly!\n\nRequest ID: ${requestId}\nIf you have any questions, feel free to reply directly to this email.`
     });
 
     console.log(`✅ [Mailer] Confirmation receipt sent to client ${email}`);
@@ -527,9 +544,11 @@ export async function sendProApprovedNotification({ name, email }) {
       </html>
     `;
 
+    const adminEmail = process.env.ADMIN_EMAIL || senderUser || 'admin@gmail.com';
     await sendMailWithFallback({
       from: `"Pro Expense Tracker" <${senderUser}>`,
       to: email,
+      replyTo: adminEmail,
       subject: `🎉 Congratulations! Your PRO Plan is Activated - Pro Expense Tracker`,
       html: approvedHtml,
       text: `Hi ${name},\n\nYour account has been successfully upgraded to PRO! All premium features, tax deductions, and unlimited AI scans are now active.\n\nEnjoy tracking!`
